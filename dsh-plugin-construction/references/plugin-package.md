@@ -73,11 +73,18 @@ dsh?: {
 
 ## 版本兼容门
 
-`dsh plugin add` 在 pnpm 运行前检查：registry spec 会先查该范围选中的版本及其声明的 peer，**不兼容的 DSH peer 直接让操作失败**，不下载、不跑构建脚本。实测输出形态：
+`dsh plugin add` 在 pnpm 运行前检查：registry spec 会先查该范围选中的版本及其声明的 peer，**不兼容的 DSH peer 直接让操作失败**，不下载、不跑构建脚本。
+
+拒绝本身由安装器打印（实测原文，两行）：
 
 ```
 dsh: installation rejected: Plugin @deepseek-ai/dsh-web-app@0.0.1-rc.1 is incompatible with dsh 0.2.0-rc.2: peerDependencies {...}
 dsh: nothing was installed.
+```
+
+「接受风险」的提示是 **CLI 另外加的一行**，不属于安装器的警告文本，它给的是可直接复制的命令：
+
+```
 dsh: to accept the risk, run: dsh plugin --profile <p> allow-version <pkg@ver> --dsh-version 0.2.0-rc.2 --accept-risk
 ```
 

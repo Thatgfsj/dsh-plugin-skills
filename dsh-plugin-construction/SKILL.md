@@ -32,7 +32,7 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 - **共享宿主实例的 `@deepseek-ai/*` 包（`dsh-*`、`cordis`、`schemastery` 等）必须同时写进 `peerDependencies` 和 `devDependencies`，绝不放进 `dependencies`。** 机制是模块解析：插件目录向上找不到该包时 import 抛 `ERR_MODULE_NOT_FOUND`，该行不加载，而且**很可能看不到任何报错**（实测：link 安装且未声明 peer 时该 import 直接失败、插件整行不生效；补上 peer 后同一份代码立刻加载）。已被 profile 的 `node_modules` 提升到解析路径上的包不受影响。
 - **不要用新的 `type` 追加会话事件**（`Session.append()` 写不出 `ignorable: true`，会让会话打不开）。状态从既有事件推导，或放进 storage 服务。
 - **不要读写未在 `inject` 里声明的 `ctx.<service>`**：属性代理会抛错（源码文案 `cannot get property "x" without inject`），插件在该处中止、后续注册全部不发生，而且不一定有可见诊断。`ctx.get()` **不要求 inject**，但默认只返回已激活的实现——返回 `undefined` ≠ 服务不存在。
-- **覆盖（override）已存在的行时，`config` 是整体替换不是深合并**，必须重述该行需要的每个键；上游删行后 override 会静默失效（`--dump-config` 里显示 `patch: entry "id" not found`，实测）。
+- **覆盖（override）已存在的行时，`config` 是整体替换不是深合并**，必须重述该行需要的每个键；上游删行后 override 会被跳过——**但不是无声**：`--dump-config` 会打 `patch: entry "id" not found`，而普通启动/`--help` 未必显示，所以升级上游后要专门跑一次 `--dump-config`。
 - **UI 半边：只渲染 slot 里的 React 组件**，不 iframe、不 `require` 任何 `@deepseek-ai/dsh-client-*` 包、不在组件外写 DOM、不往 `document.body` 追加；样式只用 `--dsw-alias-*` 主题 token。
 - **交付要有展示元数据**：`locale/en.json` 的 `meta.title`/`meta.description` + **顶层 `package.json.icon`**（本机版本；见下）。
 

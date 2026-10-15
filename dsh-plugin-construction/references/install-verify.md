@@ -50,7 +50,7 @@ dsh --profile <p> --patch /abs/path/overlay.yml --help
 
 用绝对路径把插件文件插进组合、给 app 传 `--help`：**组合会挂载、`apply` 会执行、stdout 会打印你的日志，Web 服务不会绑端口**。这是最快确认真实加载路径的方式。
 
-**边界**：这条路径只跑到 `apply`。实测把 `dsh.client.platform` 写成非法值、把 `./client` 指向不存在的文件，都不报错 —— 客户端组合在插件的 **start** 阶段，`--help` 不会走到。UI 半边必须用真实页面验证。
+**边界**：这条路径对 Host 半边足够，对 UI 半边不够。客户端组合其实**也会执行**——`ClientModuleRegistry` 在构造期就 compose 启动图，插一个 `inject: ['clientModules']` 的消费者能在 `--help` 输出里看到它激活；但事件驱动的 flush 把失败交给 `ctx.logger.warn`，所以把 `dsh.client.platform` 写成非法值、把 `./client` 指向不存在的文件时**看不到任何错误文本**。UI 半边必须用真实页面验证。
 
 ### 3）真实页面 / 端到端
 
