@@ -53,6 +53,8 @@
 - **MCP bundle、agent preset 编辑、HMR 热替换行为**：未实测，写法取自官方技能与 `cordis-composition-reference`。
 - **`ctx.get` 的读法**：我最初只观测到"未声明 `inject` 时读不到 `tools`"并据此推成"它不是存在性探针"。复审读 cordis 源码后推翻了这个因果：`get(name, strict = true)` 源码注释写明 *without the inject requirement*，`strict` 只要求提供方 fiber 已 `ACTIVE`。所以更可能是**读取时机太早**。这条已按复审改写，但"何时算激活"仍没有完整实测。
 - **Node/包管理器版本**：本机 `node v24.21.0`、`pnpm 12.11.2`；官方 engines 是 `^22.19 || >=24`。其他版本可能有别的行为。
+- **`link:` 与 `allowBuilds` 的归属**：目录安装「走 `link:`」和构建批准「是 pnpm ≥10 的 `allowBuilds`」这两条，dsh 侧的证据只到「把批准写进 `<profile>/pnpm-workspace.yaml` 的 `allowBuilds`」；`link:` 字面量与版本号归属属 pnpm 行为，未做安装验证。
+- **`cordis_inspect_query` 类 inspection 工具**：官方技能假定会话里有它，本会话没有；「普通 Web 会话是否一律缺失」未系统核对。
 - **网络**：本次全程走代理，日志里有 `all_proxy names a SOCKS proxy ... connecting directly` 的提示；安装类结论只在这套网络下成立。
 
 ## 审查记录（本轮）

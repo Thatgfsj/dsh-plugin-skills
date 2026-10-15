@@ -10,7 +10,7 @@ dsh --profile <name> --dump-config        # 看层，不启动
 
 - `dsh plugin --profile <p> <args...>` 把 `<args>` 原样转发给**在 profile 目录里**执行的 pnpm，任何 pnpm 子命令都能用。
 - 第一次使用会自动初始化 profile（`@deepseek-ai/dsh-base` 作为第一个 bundle），并在包声明了 `dsh.bundle` 时把它追加进 `dsh.profile.bundles`。
-- 目录安装走 `link:`，**改完文件不需要重装**；但换新的 JS 模块代需要重启宿主。
+- 目录安装**不复制文件**（实测 `add <目录>` 约 40 ms 完成、不下载），**改完文件不需要重装**；但换新的 JS 模块代需要重启宿主。底层是 pnpm 的 link 行为：本机 `plugin-manager` 代码里没有 `link:` 这个字面量，我没做安装路径的直接验证。
 - **不要手写 profile 的 `package.json`/`cordis.patch.yml`，不要在 profile 目录里跑 pnpm**（有 `plugin_manager` 工具的会话用 `action: install_bundle`；没有就用上面的 CLI）。
 
 ### in-box bundle 的一个坑（实测）

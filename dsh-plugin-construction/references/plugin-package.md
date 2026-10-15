@@ -97,4 +97,4 @@ dsh: to accept the risk, run: dsh plugin --profile <p> allow-version <pkg@ver> -
 | 本地目录 / link | 否 | `files` 不过滤 link 目录，改完即生效（但 JS 模块代需要重启才会换新） |
 | tarball（`pnpm pack`） | 否 | 推荐给不想让用户授权的场景 |
 | npm 预构建 | 否 | 发布前构建好 `lib/` |
-| `github:you/repo` | **是**（pnpm ≥10 的 `allowBuilds`） | 拉的是源码不是产物；作者必须提供自包含的 `prepare` 脚本，用户要显式允许该包在安装时执行代码，且应锁 commit |
+| `github:you/repo` | **是**（构建脚本批准） | 拉的是源码不是产物；作者必须提供自包含的 `prepare` 脚本，用户要显式允许该包在安装时执行代码，且应锁 commit。dsh 侧已核实会把批准写进 profile 的 `pnpm-workspace.yaml` 的 `allowBuilds`；「pnpm ≥10」这个版本归属**没核对**（本机 pnpm 12.11.2） |
