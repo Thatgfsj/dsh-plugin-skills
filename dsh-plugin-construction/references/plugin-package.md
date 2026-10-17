@@ -60,7 +60,7 @@ dsh?: {
 ```
 
 - `!!js`（双感叹号）是 Loader 表达式，写在 `config` 或 `disabled` 里；**`!js` 是错的**。写在 `config` 里的表达式在该行声明的注入激活之后、对它自己的 context 求值（`ctx.<service>`）。
-- 覆盖一个不存在的 `id` 会**大声警告**：实测 `dsh: [<patch 路径>] patch: entry "no-such-row-xyz" not found`。升级上游后请跑一次 `--dump-config` 复查。
+- 覆盖一个不存在的 `id` 会被**跳过并警告**：实测 `dsh: [<patch 路径>] patch: entry "no-such-row-xyz" not found`。注意这条**只在 `--dump-config` 输出**，`--help` 冒烟下看不到——升级上游后务必专门跑一次 `--dump-config`。
 - `group: true` + `name: cordis:group` 让 `config` 变成嵌套行列表；`cordis:include` 从 `config.path` 读 YAML/JSON 列表。
 
 ## 依赖解析（link 安装最容易踩）
@@ -68,8 +68,10 @@ dsh?: {
 官方 `publish.md` 的规则，实测已确认：
 
 - 需要与宿主**共享实例**的 dsh 包（`@deepseek-ai/dsh-*`、`@deepseek-ai/cordis`、`@deepseek-ai/schemastery`）声明在 **`peerDependencies` + `devDependencies`**：peer 让运行时用宿主那份，devDependency 给类型检查和独立测试。
+- **一处真实分歧**：官方仓库内部包的约束脚本把 `@deepseek-ai/schemastery` 归进 `dependencies`（理由：它是运行时校验器，仓库内靠 workspace 解析，不存在实例不一致）。**这个例外只对 monorepo 内部包成立**；对外部 link 安装的第三方插件，实测不声明 peer 会直接 `ERR_MODULE_NOT_FOUND`。照 `publish.md` 的 peer 规则走更安全——关键是**必须声明**，声明在别处会引入第二份实例。
 - 独立版本的第三方依赖、无状态的 dsh 工具包放 `dependencies`。
 - **反例实测**：`index.js` 里 `import Schema from '@deepseek-ai/schemastery'`，包只 link 进 profile、没声明 peer → `ERR_MODULE_NOT_FOUND`（直接用 node 从该目录 import 也是同样错误），插件行**静默不加载**；把该包加进 `peerDependencies` 后同一份代码正常加载。
+- **为什么非 peer 不可**（0.2.1-rc.2 实测三连）：在 dsh 安装目录里 `import('@deepseek-ai/schemastery')` **成功**（宿主那份在这儿），但从**插件自己的目录**和**profile 目录**都失败：`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'`。所以宿主共享的包不能靠"运行时总能找到"，必须声明成 peer 让解析走到宿主那份——**声明错了不是报错，是整行没反应**。
 
 ## 版本兼容门
 
