@@ -67,7 +67,8 @@ window.__ModuleLoader__.load({
 
 - `ctx.slots.inject(ownerKey, () => ctx.slots.register(options, Component))`：owner 塌缩时注册被回收，恢复时重装。
 - 注册即声明：注册条目成为唯一被允许渲染该键的条目；注册未声明 slot、重复声明子 slot 等会在加载时抛错。
-- 几个实测存在于本机 0.2.0-rc.2 的 slot id：`conversation.composer.dock`、`conversation.composer.bar`、`conversation.input.dock`、`conversation.input.left`、`conversation.input.overlay`、`conversation.header`、`conversation.chat.node`、`conversation.chat.turnTail`。`shell.overlay` 只在确实需要覆盖层且位置已知时用。
+- 几个实测存在于本机 **0.2.1-rc.2** 的 slot id：`conversation.composer.dock`、`conversation.composer.bar`、`conversation.input.dock`、`conversation.input.left`、`conversation.input.overlay`、`conversation.header`、`conversation.chat.node`、`conversation.chat.turnTail`。`shell.overlay` 只在确实需要覆盖层且位置已知时用。
+- 插件面板本身也是可扩展的：`plugins.tab`、`plugins.item`、`plugins.detail.section`、`plugins.detail.badge`、`plugins.detail.actions`、`plugins.bundle.config`、`plugins.row.config`、`plugins.add.actions`、`plugins.bundle.activation`、`settings.plugins.tab`。想让自己的插件出现在插件管理界面里，就从这里下手。
 - **查真实 slot 名不要靠记忆**，而且要**两处都查**：in-box bundle 从 **dsh 安装目录**解析（`<dsh>/node_modules/@deepseek-ai/*`），只有第三方插件才在 profile 的 `node_modules` 里。只 grep profile 会静默得到 0 行（本机实测）。
 
   ```sh
@@ -77,7 +78,7 @@ window.__ModuleLoader__.load({
     | sed "s/.*inject('//;s/'$//" | sort -u
   ```
 
-  本机这条命令返回 **90** 个唯一 slot。注意 `$(npm root -g)/@deepseek-ai` 下只有 `dsh` 一个目录，真正的子包在 `@deepseek-ai/dsh/node_modules/@deepseek-ai/`（288 个）——写成前者同样会得到 0 行。
+  本机 0.2.1-rc.2 这条命令返回 **100** 个唯一 slot（0.2.0-rc.2 时是 90 个——**别把数字和清单写死进代码**）。注意 `$(npm root -g)/@deepseek-ai` 下只有 `dsh` 一个目录，真正的子包在 `@deepseek-ai/dsh/node_modules/@deepseek-ai/`（0.2.1 有 305 个）——写成前者同样会得到 0 行。
 
   带 inspection 工具（如 `cordis_inspect_query`）的会话可以直接查 `Slots.listSubTree`，没有就靠 grep。
 
@@ -89,7 +90,7 @@ window.__ModuleLoader__.load({
 - 面向用户的文案走 Client locale 服务；资源在 `apply` 里用 `ctx.effect`/`ctx.on` 注册并返回清理函数，组件级样式以 React 元素形式渲染以便卸载时移除。
 - 加 Chat 行：用 `ctx.uiConversation.events.register()` 注册事件定义，视图注册到 `conversation.chat.node` slot 下、键为定义里的 `kind`。
 
-## 展示元数据（本机 0.2.0-rc.2 的正确写法）
+## 展示元数据（0.2.1-rc.2）
 
 ```json
 // locale/en.json（可加 locale/zh.json；同名字段）
@@ -97,19 +98,36 @@ window.__ModuleLoader__.load({
 ```
 
 ```json
-// package.json —— 图标是顶层字段，不是 exports 里的 "./icon"
+// package.json —— 两种写法都支持，顶层 icon 优先
 {
-  "icon": "./icon.svg",
-  "exports": { "./package.json": "./package.json", "./locale/*.json": "./locale/*.json" }
+  "icon": "./icon.svg",                       // 优先；相对 manifest，realpath 后必须在包内
+  "exports": {
+    "./icon": "./icon.svg",                   // 顶层没写时才回退到这里（0.2.0-rc.2 不支持）
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  }
 }
 ```
 
-- 缺字段会回退到 `package.json` 的 `name`/`description` 与面板默认插画；元数据畸形只产生诊断并保留有效文本。
-- **子路径插件**（`my-plugins/search`）：本机 0.2.0-rc.2 **仍会**通过 `<subpath>/package.json` 读展示清单——`readPluginMeta` 的 JSDoc 明写 specifier "including any package subpath"，过滤器只丢掉非包说明符；**master/下一版才不再读它**，改用 locale `meta` + 导出 `<subpath>/icon`。官方专门有一篇升级指南 `docs/upgrade-guide/v0.2.0-rc.2/subpath-plugin-display-manifest/`。别把下一版行为写进本机交付。
+- 缺字段会回退到 `package.json` 的 `name`/`description` 与面板默认插画；元数据畸形只产生诊断并保留有效文本，且**图标失败不会连带丢文本**。图标格式仍是 SVG/PNG/JPEG/WebP、≤256 KiB；SVG 只当图片渲染，不内联成 HTML。
+- **子路径插件**（`my-plugins/search`）：**0.2.1-rc.2 起一律不读 `package.json`**（0.2.0-rc.2 会读 `<subpath>/package.json`，这条已在升级里翻转）。文案走 `<subpath>/locale/*.json`，图标只认导出的 `<subpath>/icon`，两条都要在 `exports` 里显式开出来。
+- **内置 bundle 的功能预览图不给第三方用**：Plugin Manager 内部维护一张 `BUNDLE_PREVIEWS` 映射，包无法通过 manifest 或 exports 声明预览图，第三方插件没有这个接口（0.2.1 新增的 `docs/cookbook/adding-a-plugin-preview.md` 就是给仓库内开发者改这张表的）。
 - 参照实现：`dsh-dream-skin@10.15.0`（真实第三方 UI 插件）——`dsh.bundle.patch` + `dsh.client{platform,immediately,inject}`，`exports` 里 `./client` → `lib/client.js`，顶层 `icon`，`locale/en.json` 与 `locale/zh.json`。
 
 ## 验证的边界（重要）
 
-- **客户端组合其实也跑了，只是错误被降级。** `ClientModuleRegistry` 只声明 `inject: ['loader']`，在**构造期**就扫描并 compose 启动图（构造期 flush 失败会抛 `ClientPackageCompositionError`）；之后由 `internal/plugin` 事件驱动的 flush 失败**只走 `ctx.logger.warn`**。实测：插入一个 `inject: ['clientModules']` 的消费者后，`dsh --profile <p> --patch <overlay> --help` 会打印它已激活并报出图条目数。所以「把 `dsh.client.platform` 改成非法值、把 `./client` 指向不存在的文件都不报错」的原因**不是没走到，而是错误进了 `logger.warn` 而不是 stdout/throw**。结论不变：`--help` 仍只适合验证 Host 半边。
-- UI 半边必须靠**真实提供出来的页面**（浏览器控制台无 slot crash、明暗主题各看一次、与同类型宿主组件并排比对）才能下结论。没有浏览器控制时，只能声明"已完成语法、manifest、slot 层级检查，渲染未验证"，**不要**用 mock 页面截图充当验证。
+- **客户端组合其实也跑了，只是错误被降级。** `ClientModuleRegistry` 只声明 `inject: ['loader']`，在**构造期**就扫描并 compose 启动图（构造期 flush 失败会抛 `ClientPackageCompositionError`）；之后由 `internal/plugin` 事件驱动的 flush 失败**只走 `ctx.logger.warn`**。所以「把 `dsh.client.platform` 改成非法值、把 `./client` 指向不存在的文件都不报错」的原因**不是没走到，而是错误进了 `logger.warn` 而不是 stdout/throw**（0.2.1-rc.2 复测：stdout 32 行、stderr 只有一条代理警告，没有任何 client 诊断）。
+
+  想确认组合到底跑没跑，插一个探针插件（这条路径在 0.2.1-rc.2 实测有效）：
+
+  ```js
+  export const inject = ['clientModules']
+  export function apply(ctx) {
+    const svc = ctx.get('clientModules')
+    console.log('[probe] activated =', !!svc, 'composed keys =', Object.keys(svc.composed ?? {}))
+  }
+  ```
+
+  `dsh --profile <p> --patch <overlay> --help` 会打印 `activated = true`。
+- 结论不变：**`--help` 冒烟只适合验证 Host 半边；UI 渲染必须真实页面。** UI 半边必须靠**真实提供出来的页面**（浏览器控制台无 slot crash、明暗主题各看一次、与同类型宿主组件并排比对）才能下结论。没有浏览器控制时，只能声明"已完成语法、manifest、slot 层级检查，渲染未验证"，**不要**用 mock 页面截图充当验证。
 - 改了客户端 bundle 需要重新构建并刷新页面；HMR 会用带 revision 的 URL 重载，但**替换已安装的包必须重启**才能换到新的 JS 模块代。

@@ -6,7 +6,7 @@ whenToUse: 用户要求开发、打包、安装、调试 DSH 插件/bundle/UI �
 
 # DSH 插件构建
 
-**先确认版本，再动手。** 本技能的"已实测"结论全部基于本机运行时 `dsh --version = 0.2.0-rc.2`（2026-10 采样）。官方 master 当时是 `0.2.1-alpha.4`，第三方教程多按更早或更晚的版本写，**同一字段在不同版本含义不同**。差异清单见 `references/sources.md`。
+**先确认版本，再动手。** 本技能的"已实测"结论基于本机运行时 `dsh --version = 0.2.1-rc.2`（2026-10 采样，npm `next` 通道；`latest` 当时仍是 `0.2.0-rc.2`）。**0.2.0 → 0.2.1 有破坏性变更**：`engines.dsh` 从纯声明变成强制且优先于 peer、图标与子路径展示元数据改了、`dsh plugin` 的参数位置改了。每条结论都标了适用版本，差异清单见 `references/sources.md`。官方每次破坏性变更都有一篇 `docs/upgrade-guide/<版本>/<主题>/guide.md`，升级后第一件事是读那一版目录。
 
 ## 心智模型（四层，别搞混）
 
@@ -24,8 +24,8 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 1. **确认目标版本**：`dsh --version`。宿主没有 `plugin_manager` / `cordis_inspect_query` 工具时（例如普通 Web 会话），用下面 CLI 路径，不要照抄官方技能里的工具调用。
 2. **选扩展点**：先用最弱的够用机制 —— `ctx.tools.restrict()`（只能移除）< `ctx.tools.guard()`（只能拒绝）< waterfall 监听器改写（依赖注册顺序）< `system-prompt/assemble`（整段替换）。详见 `references/host-plugin.md`。
 3. **写包**：最小 Host 插件 = `package.json`（含 `dsh.bundle.patch`）+ `cordis.patch.yml`（`insert:` 一行 `id`/`name`）+ `index.js`。要进模型/配置的东西一律走 `ctx.effect()` / `ctx.on()` / 注册表。
-4. **装进 profile**：`dsh plugin --profile <name> add <绝对路径或包名>`。**不要手写 profile 的 `package.json`/`cordis.patch.yml`，不要在 profile 目录里跑 pnpm。**
-5. **验证**：先用 `dsh --profile <name> --dump-config` 看层和行有没有挂上、有没有 `patch: entry "x" not found`；再用 `dsh --profile <name> --patch <overlay.yml> --help` 做秒级冒烟（Host 半边 `apply` 会真的执行并打印日志）。UI 半边需要真实页面，见 `references/install-verify.md`。注意 `patch: entry "x" not found` 这条警告**只在 `--dump-config` 路径打印**，`--help` 冒烟看不到。
+4. **装进 profile**：`dsh plugin --profile <name> add <路径或包名>`。`--profile` 必须写在转发给 pnpm 的参数**之前**（0.2.1 新规则）；相对路径（`.`, `../plugin`, `file:`, `link:`）锚定在**你调用命令的目录**，所以在插件仓库里 `add .` 装的就是当前 checkout。装完 `dsh.profile.bundles` 会自动对齐。**不要手写 profile 的 `package.json`/`cordis.patch.yml`，不要在 profile 目录里跑 pnpm。**
+5. **验证**：三级阶梯，见 `references/install-verify.md`。① `dsh --profile <name> --dump-config`（层与行）、`--dump-config-schema`（0.2.1 新增，直接给出行/补丁的 JSON Schema，不用挂载就能校验 patch 写法）；② `dsh --profile <name> --patch <overlay.yml> --help` 秒级冒烟（Host 半边 `apply` 真执行、effect 注册与释放都会打印）；③ UI 半边要真实页面。注意 `patch: entry "x" not found` **只在 `--dump-config` 打印**，`--help` 冒烟看不到。
 
 ## 红线（违反会出现"静默失效"）
 
@@ -34,12 +34,14 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 - **不要读写未在 `inject` 里声明的 `ctx.<service>`**：属性代理会抛错（源码文案 `cannot get property "x" without inject`），插件在该处中止、后续注册全部不发生，而且不一定有可见诊断。`ctx.get()` **不要求 inject**，但默认只返回已激活的实现——返回 `undefined` ≠ 服务不存在。
 - **覆盖（override）已存在的行时，`config` 是整体替换不是深合并**，必须重述该行需要的每个键；上游删行后 override 会被跳过——**但不是无声**：`--dump-config` 会打 `patch: entry "id" not found`，而普通启动/`--help` 未必显示，所以升级上游后要专门跑一次 `--dump-config`。
 - **UI 半边：只渲染 slot 里的 React 组件**，不 iframe、不 `require` 任何 `@deepseek-ai/dsh-client-*` 包、不在组件外写 DOM、不往 `document.body` 追加；样式只用 `--dsw-alias-*` 主题 token。
-- **交付要有展示元数据**：`locale/en.json` 的 `meta.title`/`meta.description` + **顶层 `package.json.icon`**（本机版本；见下）。
+- **交付要有展示元数据**：`locale/en.json` 的 `meta.title`/`meta.description` + 图标（顶层 `package.json.icon` 或 `exports["./icon"]`，前者优先）。有 `exports` 就必须把 `./package.json` 与 `./locale/*.json` 也导出，否则以上全部静默失效。
+- **发布前给包声明 `engines.dsh`**：它一旦存在就单独决定兼容性并让 peer 检查失效，写错区间等于把自己锁在某个 dsh 版本外。
 
-## 本机版本的两个高频坑（已实测）
+## 0.2.1 的三个高频坑（已实测）
 
-1. **图标声明方式**：`0.2.0-rc.2` 只认 `package.json` 顶层的 `"icon": "./icon.svg"`（类型定义 `DshPackageManifest.icon`，path 相对于 manifest、realpath 后必须在包内、≤256 KiB，支持 SVG/PNG/JPEG/WebP）。"导出 `./icon`" 是 master（≥0.2.1）的新写法，本机不生效。真实第三方插件 `dsh-dream-skin@10.15.0` 用的正是顶层 `icon`。另外：**只要包里有 `exports`，就必须显式导出 `"./package.json"` 与 `"./locale/*.json"`**，否则图标与 locale 元数据会**静默丢失**（解析抛 `ERR_PACKAGE_PATH_NOT_EXPORTED`，被内部吞掉）；详见 `references/client-plugin.md`。
-2. **安装期会强制 peer 范围**：`dsh plugin add` 会用运行时版本比对插件声明的 `@deepseek-ai/dsh-*` peer 区间，不匹配就**拒绝安装**（实测：`dsh plugin --profile <p> add @deepseek-ai/dsh-web-app` 从公共 npm 取到 `0.0.1-rc.1` 后被拒绝）。`engines.dsh` 是纯声明、不强制。
+1. **`engines.dsh` 现在真强制，而且压过 peer。** 声明了 `engines.dsh` 时，**它单独决定**兼容性，`@deepseek-ai/dsh*` 的 `peerDependencies` 被**忽略**；只有当 `engines.dsh` 不存在时才回退到 peer 规则；两者都没有则不设约束。安装与 profile 启动都会拒绝。实测（本机 0.2.1-rc.2）：`engines.dsh: ">99.0.0"` → `installation rejected ... requirements {"engines.dsh":">99.0.0"}`；**同时**声明兼容的 `engines.dsh` 与不兼容的 peer → **安装成功**（engines 赢）。所以声明了 `engines.dsh` 就必须让它覆盖你真正支持的**所有** dsh 版本；`workspace:` 在 `engines.dsh` 里非法；`engines` 不是对象或 `engines.dsh` 不是字符串会被当成**畸形清单**而拒绝。
+2. **展示元数据两处有坑。** ① 图标现在**两种写法都支持**：顶层 `package.json.icon`（相对 manifest、realpath 后必须在包内、≤256 KiB、SVG/PNG/JPEG/WebP）**优先**，没有该字段时才回退到 `exports["./icon"]`（0.2.0-rc.2 只支持前一种）。② 只要包里有 `exports`，就必须显式导出 `"./package.json"` 与 `"./locale/*.json"`，否则图标与 locale 元数据**静默丢失**（解析抛 `ERR_PACKAGE_PATH_NOT_EXPORTED` 后被内部吞掉）。
+3. **子路径插件不再读 `package.json`。** `<pkg>/search` 这类子路径说明符在 0.2.0-rc.2 仍会读 `<pkg>/search/package.json`，**0.2.1-rc.2 起一律不读**：文案走 `<pkg>/search/locale/*.json`，图标走导出的 `<pkg>/search/icon`。给子路径插件做展示，要在它的 `exports` 里各自导出。
 
 ## 参考文件
 
@@ -53,4 +55,4 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 
 ## 证据纪律
 
-本技能每条硬结论都标注了来源与核实方式。**外部资料一律不可全信**：官方技能 `cordis-plugin-development`（随 dsh 一起装）描述的是它自己那一版的行为；第三方 `dsh-plugin-guide` 覆盖面广但按 `0.2.1-alpha.2+` 写，其中"`./icon` 导出"一条在本机不成立。冲突时按 **本机代码/产物 > 官方仓库 master 文档 > 第三方文档** 取舍，并把分歧写进交付说明。`references/sources.md` 列出了我没有验证到的部分。
+本技能每条硬结论都标注了来源与核实方式。**外部资料一律不可全信**：官方随包技能 `cordis-plugin-development` 描述的是它自己那一版的行为；第三方教程按各自声明的版本写，而且**版本一升就可能从正确变错误**——2026-10 的 0.2.0 → 0.2.1 升级里，第三方 `dsh-plugin-guide` 曾推荐的"导出 `./icon`"从"本机不生效"变成了"支持"，而反过来 `engines.dsh` 从"纯声明"变成了"强制且优先"。冲突时按 **本机代码/产物 > 官方仓库对应 tag 的文档 > 第三方文档** 取舍，并把分歧写进交付说明。`references/sources.md` 列出了我没有验证到的部分。

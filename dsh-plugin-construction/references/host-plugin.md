@@ -1,6 +1,6 @@
 # Host 插件契约
 
-来源：官方 `docs/user/develop/{basic,framework}/*.zh.md`、`packages/AGENTS.md`、随 dsh 安装的 `cordis-plugin-development` 技能；行为结论已在本机 0.2.0-rc.2 上实测。
+来源：官方 `docs/user/develop/{basic,framework}/*.zh.md`、`packages/AGENTS.md`、随 dsh 安装的 `cordis-plugin-development` 技能；行为结论已在本机 **0.2.1-rc.2**（vendored cordis **4.0.5**）上实测。这一层契约在 0.2.0 → 0.2.1 之间没有破坏性变更。
 
 ## 三种导出形态（不要混用）
 
@@ -67,7 +67,7 @@ export function apply(ctx: Context, config: Config) {}
 
 - `inject = ['tools']` → `apply` 里可安全用 `ctx.tools`。
 - **未声明的 `ctx.<name>` 会抛错**（源码文案：`cannot get property "${prop}" without inject`）。实测里该行后续输出全部消失；但"有没有日志"取决于 Loader 的日志级别，不要把它当成"必然无声"。
-- `ctx.get(name, strict = true)` **不要求 `inject`**（cordis 源码注释原话：*without the inject requirement*）；默认 `strict` 下只返回**已激活 fiber** 的实现，否则返回 `undefined`。因此"未声明 `inject` 时读不到 `tools`"这个现象更可能是**读得太早、提供方 fiber 还没 ACTIVE**，而不是 `inject` 决定可见性——别据此给可选依赖乱加 `inject`。读不到时按「提供方未激活 → 作用域隔离 → 真的不存在」顺序排查。
+- `ctx.get(name, strict = true)` **不要求 `inject`**（cordis 源码注释原话：*without the inject requirement*）；默认 `strict` 下只返回**已激活 fiber** 的实现，否则返回 `undefined`；`strict: false` 可以拿到未激活的实例（**本技能没有实跑这个分支**）。因此"未声明 `inject` 时读不到 `tools`"这个现象更可能是**读得太早、提供方 fiber 还没 ACTIVE**，而不是 `inject` 决定可见性——别据此给可选依赖乱加 `inject`。读不到时按「提供方未激活 → 作用域隔离 → 真的不存在」顺序排查。
 - **拓扑敏感**：`@deepseek-ai/dsh-*` 这类包必须放 `peerDependencies`（见 `references/plugin-package.md`），否则 import 直接失败。
 
 ## 事件
@@ -75,9 +75,12 @@ export function apply(ctx: Context, config: Config) {}
 | 模式 | 语义 |
 |---|---|
 | `ctx.emit(name, payload)` | 广播，忽略返回值 |
+| `await ctx.parallel(name, payload)` | 并发执行，全部等待 |
 | `ctx.bail(name, input)` | 顺序执行，第一个非 `null/false/undefined` 的返回值胜出 |
 | `await ctx.serial(name, ctx)` | 顺序 + 等异步，同样短路 |
 | `await ctx.waterfall(name, input, next)` | 流水线；监听器**必须调用 `next()`**，不调用即故意短路 |
+
+（`DispatchMode` 的完整取值：`emit` / `parallel` / `serial` / `bail` / `waterfall`。）
 
 - 事件命名约定 `namespace/action`（`agent/pre-step`、`tools/result`、`session/event` …）。
 - `turn/*`、`step/*`、`tool/call`、`tool/result`、`compaction/*` 是**持久化会话事件类型**，不是同名 Cordis 事件；要观察它们请监听 `session/event` 再看 `event.type`。

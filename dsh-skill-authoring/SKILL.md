@@ -6,7 +6,7 @@ whenToUse: 用户要求把资料整理成 skill、新增或修改 SKILL.md、排
 
 # 编写 DSH 技能（SKILL.md）
 
-事实来源：本机 `@deepseek-ai/dsh-skill-filesystem/lib/index.js` 与 `@deepseek-ai/dsh-tool-skill/lib/index.js`（0.2.0-rc.2 源码），以及官方 `dsh-skill` / `dsh-skill-filesystem` 的 README。
+事实来源：本机 **0.2.1-rc.2** 的 `@deepseek-ai/dsh-skill`、`dsh-skill-filesystem`、`dsh-tool-skill` 的 `lib/index.js`，以及官方 tag `dsh-v0.2.1-rc.2` 的 `packages/skill/**` 与 `docs/subsystems/skills.md`。技能的**发现与格式在 0.2.0 → 0.2.1 之间没有变化**（rank、正则、字段集、500 截断都逐字节一致），只有调用键名和 rank 600 的用法有更新，见下。
 
 ## 技能放哪里（发现是**一层深**，不递归）
 
@@ -21,6 +21,7 @@ whenToUse: 用户要求把资料整理成 skill、新增或修改 SKILL.md、排
 
 - `projectRoot` = 最近的含 `.git` 的祖先目录；没有就用当前 cwd。
 - 只识别 `<root>/<name>/SKILL.md` 和 `<root>/<name>.md` 两种形态。**`<root>/a/b/SKILL.md` 这种嵌套不会被发现**，不要按"技能集合目录"来组织。
+- 反过来要注意：扁平形态下，根目录里**任何 `*.md` 都是候选**。把 `customSkillDirs` 指向一个仓库根，`README.md` 也会被当成技能读一遍，然后因为缺 frontmatter 被丢弃并在日志里告警。
 - 重名时：离得近的层赢；同一层里按 rank、提供方注册顺序、提供方内部顺序裁决。被遮蔽的定义没有 API 可查。
 
 ## frontmatter（YAML，必须两个字段）
@@ -43,19 +44,22 @@ whenToUse: 可选的补充触发说明
 - `name` 必须匹配 `/^[a-z0-9]+(?:-[a-z0-9]+)*$/`（kebab-case，无大写、无下划线、无连续短横）。目录名与 `name` 保持一致最省事。
 - `name` 或 `description` 缺失、YAML frontmatter 畸形、名字非法、调用布尔值非法 → **整个技能被丢弃**，只在日志里留一条 `skill file <path> ignored: ...` 警告。模型目录**不会**告诉你有东西坏了，也不会区分"不存在"和"写错了"。
 - 调用布尔值接受 YAML 布尔与大小写不敏感的 `true/false`、`yes/no`、`on/off`、`1/0`；拼错会整条丢弃，而不是静默按默认放行。
+- **旧的驼峰键会被显式拒绝并整条丢弃**：`disableModelInvocation` / `modelInvocable` / `userInvocable` 每个都会抛 `frontmatter field "<旧键>" is unsupported; use "<新键>"`。从老文档抄配置时，这是最常见的"技能消失"原因。
 - `disable-model-invocation: true` 与 `user-invocable: false` 是两个独立开关，默认都允许，四种组合：
 
-| 组合 | 模型目录 / `skill` 工具 | 用户命令 |
+| 组合 | 模型目录 / `skill` 工具 | 用户入口 |
 |---|---|---|
 | 省略两键（默认） | 包含 | 包含 |
 | `disable-model-invocation: true` | 排除 | 包含 |
 | `user-invocable: false` | 包含 | 排除 |
 | 两者都设 | 排除 | 排除（只剩可信的 `ctx.skills.get()` 调用方看得见） |
+
+"用户入口"指浏览器里的技能目录（按 `userInvocable` 过滤）和用户消息里的 `/<name>` 手势。两者与模型侧互不影响。
 - 正文 = frontmatter 之后的全部内容（会 `trim`）。发现阶段会**读取整份文件**，但只保留 frontmatter 字段，正文被丢弃、不进入目录缓存；每次加载都重读当前文件，所以改正文不需要版本号或缓存失效。
 
 ## 目录描述会被截断
 
-`dsh-tool-skill` 的 `catalogDescriptionMaxLength` 默认 **500 字符**。模型的初始技能目录只渲染 `name` + 截断后的 `description`，所以：
+`dsh-tool-skill` 的 `catalogDescriptionMaxLength` 默认 **500 字符**，按**空白归一化后**的长度判断，超出部分**截断**（保留前 497 字符 + `...`），**不是丢弃技能**。模型的初始技能目录只渲染 `name` + 截断后的 `description`，所以：
 
 - 把"做什么 / 什么时候用"写在 description 的前半段，别把它当摘要写作。
 - 触发词（同义词、用户可能用的中英文说法）要进去，否则模型不会来加载你。
@@ -63,7 +67,8 @@ whenToUse: 可选的补充触发说明
 ## 技能里的资源
 
 - 技能的 resource base 就是 `SKILL.md` 所在目录。`references/`、`scripts/`、`assets/` 是约定俗成的子目录，加载技能时会把 resource base 指给模型。
-- **模型目录只由 `name` + 截断后的 `description`（以及 `disable-model-invocation` 造成的过滤）决定**：只有改这几项才会改变模型看到的目录内容。纯正文、`whenToUse`、`metadata` 的改动都不刷新目录，只影响下一次加载；`references/` 等资源目录的改动同样不进目录。
+- **模型目录只由 `name` + 空白归一化并截断后的 `description`（以及 `disable-model-invocation` 造成的过滤）决定**：只有改这几项才会改变模型看到的目录内容。纯正文、`whenToUse`、`metadata`、`user-invocable` 的改动都不刷新目录，只影响下一次加载；`references/` 等资源目录的改动同样不进目录。
+- 因为 digest 用的是**截断后**的 description，改动落在 500 字符窗口之外时，模型目录**不会**刷新（但下一次加载会读到新正文/新 frontmatter）——把重要信息写在前面，也让改动更容易被模型感知。
 - 发现是"目录 + 正文"分离的：目录缓存有上限（注册表 `collectCacheMaxEntries` 默认 128），正文从不缓存。
 
 ## 写完之后怎么验证
@@ -98,4 +103,7 @@ export function apply(ctx) {
 ```
 
 - 运行时注册的提供方标签是保留值 `runtime`。同名冲突的处理不同：**运行时技能 `register()` 同层同名先到先得并记警告**；**提供方 `registerProvider()` 重名直接抛错**（`a skill provider named "…" is already registered`）。
-- 发行版里已有的做法：`@deepseek-ai/dsh-agent-preset` 把技能放在包内 `skills/` 目录，由 **`customSkillDirs`（rank 300）**挂载（见本机 `dsh-web-app/presets/cordis.patch.yml` 里 `skill-filesystem` 的配置），**不是 `bundledSkillDir`（rank 600）**——后者主要给内置/测试脚手架用。第三方 `dsh-plugin-guide` 也是"一个 bundle 附带一套 SKILL.md + 资料"的形态。这是把知识随插件分发的常用做法。
+- 发行版里两种挂载方式都在用：
+  - `@deepseek-ai/dsh-agent-preset` 把技能放在包内 `skills/` 目录，由 **`customSkillDirs`（rank 300）**挂载（见本机 `dsh-web-app/presets/cordis.patch.yml` 里 `skill-filesystem` 的配置）。
+  - 打包装备（packaged provider）则用 **rank 600**：`dsh-skill-office`（provider `dsh-office`，7 个技能）、`dsh-skill-badge`（provider `dsh-badge`，缺省不挂载，需要显式 insert）、`dsh-sandbox-windows-acl` 的 ACL 技能。**0.2.1 起 rank 600 就是官方打包 skill provider 的标准 rank**。
+- 第三方 `dsh-plugin-guide` 也是"一个 bundle 附带一套 SKILL.md + 资料"的形态。这是把知识随插件分发的常用做法。

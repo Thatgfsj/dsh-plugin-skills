@@ -1,6 +1,6 @@
 # package.json 的 dsh 字段、bundle 与 profile
 
-事实来源：本机 `@deepseek-ai/dsh-package-manifest/lib/types/types.d.ts`（0.2.0-rc.2，已读源码）+ 官方 `docs/user/develop/basic/publish.md`。本节字段名与可选性以类型定义为准。
+事实来源：本机 `@deepseek-ai/dsh-package-manifest/lib/types/types.d.ts`（**0.2.1-rc.2**，已读源码）+ 官方 tag `dsh-v0.2.1-rc.2` 的 `docs/user/develop/basic/publish.md`、`packages/boot/app-boot/README.md`。字段名与可选性以类型定义为准。
 
 ## 顶层声明（`DshPackageManifest`）
 
@@ -10,7 +10,7 @@
 | `description` | 展示与发现用 |
 | `icon` | **SVG/PNG/JPEG/WebP，相对本 manifest，realpath 后必须落在包内，≤256 KiB** |
 | `private` | 本 profile 项目等不发布场景 |
-| `engines.dsh` | SemVer 区间，**声明性字段**（类型定义原话：*DSH compatibility is declarative until a reader enforces it*）。本机未观测到由它触发的安装/启动强制；真正强制的是 `peerDependencies` 范围检查（见下文「版本兼容门」） |
+| `engines.dsh` | SemVer 区间。**0.2.1 起被真正强制，且优先于 peer**：声明了它就由它**单独**判定兼容性，peer 被忽略（见下文「版本兼容门」）。类型定义仍写着 *declarative until a reader enforces it* —— 而现在安装器与 profile 启动**就是**那个 reader |
 | `dsh` | 作者声明，见下 |
 
 ## `dsh` 下的三种角色（一个包可以同时声明多种）
@@ -29,7 +29,7 @@ dsh?: {
 }
 ```
 
-- **bundle**：附带配置层的包。用户装它 = 得到一个 patch 层。
+- **bundle**：附带配置层的包。用户装它 = 得到一个 patch 层。装完 `dsh.profile.bundles` 会**自动对齐**：解析到声明了 `dsh.bundle.patch` 的依赖就入栈，没有声明的依赖保持普通依赖并打一条一次性警告（实测原文：`declares no dsh.bundle — installed as a plain dependency, not a profile layer`），移除依赖则离栈。所以 `update` 后新增的声明也会自动生效。
 - **profile**：`~/.dsh/profiles/<name>/package.json` 里的 `dsh.profile.bundles`，回答"这套组合由哪些 bundle 按什么顺序组成"。**profile 清单从不需要手写** —— `dsh plugin` 会创建并维护。
 - **client**：只在包同时要被浏览器加载时需要，见 `references/client-plugin.md`。
 
@@ -73,22 +73,30 @@ dsh?: {
 
 ## 版本兼容门
 
-`dsh plugin add` 在 pnpm 运行前检查：registry spec 会先查该范围选中的版本及其声明的 peer，**不兼容的 DSH peer 直接让操作失败**，不下载、不跑构建脚本。
+`dsh plugin add` 在 pnpm 运行前检查，**也适用于 profile 启动时对每个已声明 bundle 的复检**。判定顺序（0.2.1-rc.2 源码 + 实测双重确认）：
 
-拒绝本身由安装器打印（实测原文，两行）：
+1. 清单里有 `engines.dsh` → **只看它**，`@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 的 `peerDependencies` 全部忽略。
+2. 没有 `engines.dsh` → 每个 dsh peer 区间都必须匹配。
+3. 两者都没有 → 不设约束。
+
+边界条件：空区间或非法区间、`engines.dsh` 里的 `workspace:` 值、`engines` 不是对象、`engines.dsh` 不是字符串 —— 一律按不兼容/畸形处理。预发布版本参与区间匹配。这道门**只防版本错配，不是恶意代码沙箱**。
+
+拒绝时安装器打印（实测原文）：
 
 ```
-dsh: installation rejected: Plugin @deepseek-ai/dsh-web-app@0.0.1-rc.1 is incompatible with dsh 0.2.0-rc.2: peerDependencies {...}
+dsh: installation rejected: Plugin bundled-demo@1.0.0 is incompatible with dsh 0.2.1-rc.2: requirements {"engines.dsh":">99.0.0"}. Running it may cause crashes or data loss. Update the plugin or install a plugin version compatible with this dsh runtime. ...
 dsh: nothing was installed.
 ```
 
-「接受风险」的提示是 **CLI 另外加的一行**，不属于安装器的警告文本，它给的是可直接复制的命令：
+注意键名是 **`requirements`**（0.2.0-rc.2 时代叫 `peers`）：`engines.dsh` 规则下键为 `engines.dsh`，peer 回退时键为具体的包名。
+
+「接受风险」的提示是 **CLI 另外加的一行**，给的是可直接复制的命令：
 
 ```
-dsh: to accept the risk, run: dsh plugin --profile <p> allow-version <pkg@ver> --dsh-version 0.2.0-rc.2 --accept-risk
+dsh: to accept the risk, run: dsh plugin --profile <p> allow-version <pkg@ver> --dsh-version <ver> --accept-risk
 ```
 
-绕过（`allow-version`）等于承认可能崩溃或丢数据，只在用户明确同意后使用。
+绕过（`allow-version`，按**精确版本**豁免）等于承认可能崩溃或丢数据，只在用户明确同意后使用。失败时还会打印 `dsh: plugin command failed; diagnostics: <profile>/.plugin-manager/logs/operation-*/pnpm.log`，那是查安装错误的入口。
 
 ## 分发形态与代价
 
