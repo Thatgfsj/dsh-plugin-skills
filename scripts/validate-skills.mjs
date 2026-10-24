@@ -80,39 +80,58 @@ function checkRelativeLinks(markdownPath, text) {
   }
 }
 
-const entries = readdirSync(repoRoot).filter((name) => !name.startsWith('.') && name !== 'scripts' && name !== 'node_modules')
+/** Skill bundles sit at <version>/<name>/SKILL.md; a bare <name>/SKILL.md still counts. */
+function skillBundles(root) {
+  const out = []
+  for (const entry of readdirSync(root)) {
+    if (entry.startsWith('.') || entry === 'scripts' || entry === 'node_modules') continue
+    const dir = join(root, entry)
+    if (!statSync(dir).isDirectory()) continue
+    if (existsSync(join(dir, 'SKILL.md'))) {
+      out.push({ version: '', name: entry, dir })
+      continue
+    }
+    for (const sub of readdirSync(dir)) {
+      const subdir = join(dir, sub)
+      if (!statSync(subdir).isDirectory() || !existsSync(join(subdir, 'SKILL.md'))) continue
+      out.push({ version: entry, name: sub, dir: subdir })
+    }
+  }
+  return out
+}
+
+const bundles = skillBundles(repoRoot)
 let found = 0
-for (const name of entries) {
-  const dir = join(repoRoot, name)
-  if (!statSync(dir).isDirectory()) continue
+for (const bundle of bundles) {
+  const { name, dir, version } = bundle
+  const label = version === '' ? name : version + '/' + name
   const skillFile = join(dir, 'SKILL.md')
-  if (!existsSync(skillFile)) continue
   found += 1
-  if (!SKILL_NAME.test(name)) failures.push(`${name}/SKILL.md: directory name is not kebab-case`)
+  if (!SKILL_NAME.test(name)) failures.push(`${label}/SKILL.md: directory name is not kebab-case`)
 
   const text = readFileSync(skillFile, 'utf8')
   const front = parseFrontmatter(text)
   if (!front) {
-    failures.push(`${name}/SKILL.md: missing YAML frontmatter`)
+    failures.push(`${label}/SKILL.md: missing YAML frontmatter`)
   } else {
-    if (!front.name) failures.push(`${name}/SKILL.md: frontmatter requires name`)
-    else if (!SKILL_NAME.test(front.name)) failures.push(`${name}/SKILL.md: invalid skill name "${front.name}"`)
-    else if (front.name !== name) warnings.push(`${name}/SKILL.md: frontmatter name "${front.name}" differs from directory (DSH allows this; repository style keeps them equal)`)
-    if (!front.description) failures.push(`${name}/SKILL.md: frontmatter requires description`)
+    if (!front.name) failures.push(`${label}/SKILL.md: frontmatter requires name`)
+    else if (!SKILL_NAME.test(front.name)) failures.push(`${label}/SKILL.md: invalid skill name "${front.name}"`)
+    else if (front.name !== name) warnings.push(`${label}/SKILL.md: frontmatter name "${front.name}" differs from directory (DSH allows this; repository style keeps them equal)`)
+    if (!front.description) failures.push(`${label}/SKILL.md: frontmatter requires description`)
     else {
       const normalized = front.description.replace(/\s+/g, ' ').trim()
       if (normalized.length > CATALOG_DESCRIPTION_MAX_LENGTH) {
-        warnings.push(`${name}/SKILL.md: description is ${normalized.length} chars; DSH truncates the model catalog entry at ${CATALOG_DESCRIPTION_MAX_LENGTH}, so the tail is invisible to the model`)
+        warnings.push(`${label}/SKILL.md: description is ${normalized.length} chars; DSH truncates the model catalog entry at ${CATALOG_DESCRIPTION_MAX_LENGTH}, so the tail is invisible to the model`)
       }
     }
     for (const [legacy, canonical] of Object.entries(LEGACY_FIELDS)) {
-      if (front[legacy] !== undefined) failures.push(`${name}/SKILL.md: legacy field "${legacy}" is rejected by DSH; use "${canonical}"`)
+      if (front[legacy] !== undefined) failures.push(`${label}/SKILL.md: legacy field "${legacy}" is rejected by DSH; use "${canonical}"`)
     }
     for (const field of BOOLEAN_FIELDS) {
       const value = front[field]
       if (value === undefined) continue
       const normalized = value.toLowerCase()
-      if (!TRUE.has(normalized) && !FALSE.has(normalized)) failures.push(`${name}/SKILL.md: field "${field}" must be a boolean, got "${value}"`)
+      if (!TRUE.has(normalized) && !FALSE.has(normalized)) failures.push(`${label}/SKILL.md: field "${field}" must be a boolean, got "${value}"`)
     }
   }
 

@@ -1,45 +1,77 @@
 #!/usr/bin/env bash
-# Install every skill in this repository into the DSH skills root.
+# Install the skills of one adapted dsh version into the DSH skills root.
 #
-# The DSH filesystem skill provider discovers <root>/<name>/SKILL.md one level
-# deep, so this copies each skill directory into $DSH_HOME/skills.
+# Layout: <repo>/<dsh-version>/<skill>/SKILL.md. The filesystem skill provider
+# discovers <root>/<name>/SKILL.md one level deep, so each skill directory is
+# copied as-is; pick the version that matches your installed dsh.
 #
-# Usage: bash scripts/install.sh [--dry-run]
+# Usage: bash scripts/install.sh [--version <x.y.z[-tag]>] [--dry-run]
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dsh_home="${DSH_HOME:-$HOME/.dsh}"
 target_root="$dsh_home/skills"
-dry_run="${1:-}"
 
-if [ "$dry_run" = "--dry-run" ]; then
-  echo "would install into $target_root"
+version=""
+dry_run=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --version) version="${2:?--version needs a value}"; shift 2 ;;
+    --dry-run) dry_run="1"; shift ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+# A version directory is any child directory that contains <skill>/SKILL.md.
+versions=()
+for dir in "$repo_root"/*/; do
+  [ -d "$dir" ] || continue
+  name="$(basename "$dir")"
+  for sub in "$dir"*/; do
+    [ -f "${sub}SKILL.md" ] && { versions+=("$name"); break; }
+  done
+done
+
+if [ "${#versions[@]}" -eq 0 ]; then
+  echo "no <version>/<skill>/SKILL.md bundles found under $repo_root" >&2
+  exit 1
 fi
 
+if [ -z "$version" ]; then
+  version="$(printf '%s\n' "${versions[@]}" | sort -V | tail -1)"
+fi
+selected="$repo_root/$version"
+if [ ! -d "$selected" ]; then
+  echo "unknown version: $version" >&2
+  echo "available: $(printf '%s ' "${versions[@]}")" >&2
+  exit 1
+fi
+
+case "$target_root" in
+  */skills) ;;
+  *) echo "refusing to write outside a skills root: $target_root" >&2; exit 1 ;;
+esac
+
 found=0
-for dir in "$repo_root"/*/; do
+for dir in "$selected"/*/; do
+  [ -f "${dir}SKILL.md" ] || continue
   name="$(basename "$dir")"
-  [ -f "$dir/SKILL.md" ] || continue
-  found=$((found + 1))
-  if [ "$dry_run" = "--dry-run" ]; then
-    echo "  $name -> $target_root/$name"
-    continue
-  fi
   case "$name" in
     *[!a-z0-9-]*|'') echo "skip unexpected skill directory name: $name" >&2; continue ;;
   esac
-  case "$target_root" in
-    */skills) ;;
-    *) echo "refusing to write outside a skills root: $target_root" >&2; exit 1 ;;
-  esac
+  found=$((found + 1))
+  if [ -n "$dry_run" ]; then
+    echo "  [$version] $name -> $target_root/$name"
+    continue
+  fi
   rm -rf "${target_root:?}/${name:?}"
   mkdir -p "$target_root/$name"
   cp -R "$dir." "$target_root/$name/"
-  echo "installed $name -> $target_root/$name"
+  echo "installed [$version] $name -> $target_root/$name"
 done
 
 if [ "$found" -eq 0 ]; then
-  echo "no <name>/SKILL.md bundle found under $repo_root" >&2
+  echo "no skills found in $selected" >&2
   exit 1
 fi
-[ "$dry_run" = "--dry-run" ] || echo "$found skill(s) installed. Restart or open a new DSH session if a session does not pick them up."
+[ -n "$dry_run" ] || echo "$found skill(s) from $version installed."
