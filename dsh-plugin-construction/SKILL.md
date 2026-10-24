@@ -6,7 +6,7 @@ whenToUse: 用户要求开发、打包、安装、调试 DSH 插件/bundle/UI �
 
 # DSH 插件构建
 
-**先确认版本，再动手。** 本技能的"已实测"结论基于本机运行时 `dsh --version = 0.2.1-rc.2`（2026-10 采样，npm `next` 通道；`latest` 当时仍是 `0.2.0-rc.2`）。**0.2.0 → 0.2.1 有破坏性变更**：`engines.dsh` 从纯声明变成强制且优先于 peer、图标与子路径展示元数据改了、`dsh plugin` 的参数位置改了。每条结论都标了适用版本，差异清单见 `references/sources.md`。官方每次破坏性变更都有一篇 `docs/upgrade-guide/<版本>/<主题>/guide.md`，升级后第一件事是读那一版目录。
+**先确认版本，再动手。** 以下"已实测"结论基于 `dsh 0.2.1-rc.2`。**0.2.0 → 0.2.1 有破坏性变更**（`engines.dsh` 变强制、图标/子路径元数据、`dsh plugin` 参数位置）。升级后先读 `docs/upgrade-guide/<版本>/`，差异清单见 `references/sources.md`。
 
 ## 心智模型（四层，别搞混）
 
@@ -25,11 +25,11 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 2. **选扩展点**：先用最弱的够用机制 —— `ctx.tools.restrict()`（只能移除）< `ctx.tools.guard()`（只能拒绝）< waterfall 监听器改写（依赖注册顺序）< `system-prompt/assemble`（整段替换）。详见 `references/host-plugin.md`。
 3. **写包**：最小 Host 插件 = `package.json`（含 `dsh.bundle.patch`）+ `cordis.patch.yml`（`insert:` 一行 `id`/`name`）+ `index.js`。要进模型/配置的东西一律走 `ctx.effect()` / `ctx.on()` / 注册表。
 4. **装进 profile**：`dsh plugin --profile <name> add <路径或包名>`。`--profile` 必须写在转发给 pnpm 的参数**之前**（0.2.1 新规则）；相对路径（`.`, `../plugin`, `file:`, `link:`）锚定在**你调用命令的目录**，所以在插件仓库里 `add .` 装的就是当前 checkout。装完 `dsh.profile.bundles` 会自动对齐。**不要手写 profile 的 `package.json`/`cordis.patch.yml`，不要在 profile 目录里跑 pnpm。**
-5. **验证**：三级阶梯，见 `references/install-verify.md`。① `dsh --profile <name> --dump-config`（层与行）、`--dump-config-schema`（0.2.1 新增，直接给出行/补丁的 JSON Schema，不用挂载就能校验 patch 写法）；② `dsh --profile <name> --patch <overlay.yml> --help` 秒级冒烟（Host 半边 `apply` 真执行、effect 注册与释放都会打印）；③ UI 半边要真实页面。注意 `patch: entry "x" not found` **只在 `--dump-config` 打印**，`--help` 冒烟看不到。
+5. **验证**：三级阶梯（见 `references/install-verify.md`）：`--dump-config`（层与行）/ `--dump-config-schema`（0.2.1 新增，不挂载就能校验 patch 写法）→ `--patch <overlay> --help` 秒级冒烟（`apply` 真执行）→ 真实页面验 UI。`patch: entry "x" not found` **只在 `--dump-config` 打印**。
 
 ## 红线（违反会出现"静默失效"）
 
-- **共享宿主实例的 `@deepseek-ai/*` 包（`dsh-*`、`cordis`、`schemastery` 等）必须同时写进 `peerDependencies` 和 `devDependencies`，绝不放进 `dependencies`。** 机制是模块解析：插件目录向上找不到该包时 import 抛 `ERR_MODULE_NOT_FOUND`，该行不加载，而且**很可能看不到任何报错**（实测：link 安装且未声明 peer 时该 import 直接失败、插件整行不生效；补上 peer 后同一份代码立刻加载）。已被 profile 的 `node_modules` 提升到解析路径上的包不受影响。
+- **共享宿主实例的 `@deepseek-ai/*` 包必须同时写进 `peerDependencies` 和 `devDependencies`，绝不放进 `dependencies`。** 插件目录解析不到时 import 抛 `ERR_MODULE_NOT_FOUND`，该行不加载且**很可能没有任何报错**（实测）。见 `references/plugin-package.md`。
 - **不要用新的 `type` 追加会话事件**（`Session.append()` 写不出 `ignorable: true`，会让会话打不开）。状态从既有事件推导，或放进 storage 服务。
 - **不要读写未在 `inject` 里声明的 `ctx.<service>`**：属性代理会抛错（源码文案 `cannot get property "x" without inject`），插件在该处中止、后续注册全部不发生，而且不一定有可见诊断。`ctx.get()` **不要求 inject**，但默认只返回已激活的实现——返回 `undefined` ≠ 服务不存在。
 - **覆盖（override）已存在的行时，`config` 是整体替换不是深合并**，必须重述该行需要的每个键；上游删行后 override 会被跳过——**但不是无声**：`--dump-config` 会打 `patch: entry "id" not found`，而普通启动/`--help` 未必显示，所以升级上游后要专门跑一次 `--dump-config`。
@@ -37,11 +37,25 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 - **交付要有展示元数据**：`locale/en.json` 的 `meta.title`/`meta.description` + 图标（顶层 `package.json.icon` 或 `exports["./icon"]`，前者优先）。有 `exports` 就必须把 `./package.json` 与 `./locale/*.json` 也导出，否则以上全部静默失效。
 - **发布前给包声明 `engines.dsh`**：它一旦存在就单独决定兼容性并让 peer 检查失效，写错区间等于把自己锁在某个 dsh 版本外。
 
-## 0.2.1 的三个高频坑（已实测）
+## 0.2.1 三个易错点（细节见 references）
 
-1. **`engines.dsh` 现在真强制，而且压过 peer。** 声明了 `engines.dsh` 时，**它单独决定**兼容性，`@deepseek-ai/dsh*` 的 `peerDependencies` 被**忽略**；只有当 `engines.dsh` 不存在时才回退到 peer 规则；两者都没有则不设约束。安装与 profile 启动都会拒绝。实测（本机 0.2.1-rc.2）：`engines.dsh: ">99.0.0"` → `installation rejected ... requirements {"engines.dsh":">99.0.0"}`；**同时**声明兼容的 `engines.dsh` 与不兼容的 peer → **安装成功**（engines 赢）。所以声明了 `engines.dsh` 就必须让它覆盖你真正支持的**所有** dsh 版本；`workspace:` 在 `engines.dsh` 里非法；`engines` 不是对象或 `engines.dsh` 不是字符串会被当成**畸形清单**而拒绝。
-2. **展示元数据两处有坑。** ① 图标现在**两种写法都支持**：顶层 `package.json.icon`（相对 manifest、realpath 后必须在包内、≤256 KiB、SVG/PNG/JPEG/WebP）**优先**，没有该字段时才回退到 `exports["./icon"]`（0.2.0-rc.2 只支持前一种）。② 只要包里有 `exports`，就必须显式导出 `"./package.json"` 与 `"./locale/*.json"`，否则图标与 locale 元数据**静默丢失**（解析抛 `ERR_PACKAGE_PATH_NOT_EXPORTED` 后被内部吞掉）。
-3. **子路径插件不再读 `package.json`。** `<pkg>/search` 这类子路径说明符在 0.2.0-rc.2 仍会读 `<pkg>/search/package.json`，**0.2.1-rc.2 起一律不读**：文案走 `<pkg>/search/locale/*.json`，图标走导出的 `<pkg>/search/icon`。给子路径插件做展示，要在它的 `exports` 里各自导出。
+1. **`engines.dsh` 真强制，而且压过 peer**：声明了它就由它**单独**决定兼容性，peer 被忽略；没有才回退 peer。实测 `engines.dsh: ">99.0.0"` 被拒，而"兼容 engines + 不兼容 peer"**装得上**。所以区间要覆盖你支持的**所有** dsh 版本；`workspace:` 在这里非法。见 `references/plugin-package.md`。
+2. **展示元数据**：图标支持顶层 `package.json.icon`（优先）与 `exports["./icon"]` 两种；但只要包里有 `exports`，就必须导出 `"./package.json"` 与 `"./locale/*.json"`，否则图标与标题**静默丢失**。见 `references/client-plugin.md`。
+3. **子路径插件**（`<pkg>/search`）**不再读 `package.json`**：文案走 `<pkg>/search/locale/*.json`，图标走导出的 `<pkg>/search/icon`。
+
+## 先读内部结构（做一个"接得进生态"的插件）
+
+**插在哪一层、为什么**取决于 DSH 怎么运转。动手前至少读一条路径（索引：`references/internals/README.md`）：
+
+| 你要做的事 | 读这条路径 |
+|---|---|
+| 写一个新插件 | `internals/05-extension-seams.md` → `internals/01-substrate-cordis.md` → `internals/08-design-playbook.md` |
+| **重构/替换官方插件** | `internals/07-official-plugin-anatomy.md` → `internals/02-boot-composition.md` → `internals/03-agent-runtime.md` |
+| 排查"没反应 / 升级后坏了" | `internals/09-reading-source.md` → `internals/02-boot-composition.md` |
+
+一句话：DSH 是**配置层叠出来的 Cordis 插件树**，没有特权内核；扩展靠新增一层，策略靠事件，能力靠服务键，注册皆可回收。
+
+`internals/generated/` 的四张表由 `scripts/dsh-map.mjs` 从已安装 dsh 生成，随版本变，不要手改或背诵。
 
 ## 参考文件
 
@@ -52,7 +66,8 @@ bundle 是你分发的东西，profile 是用户启动的东西，**没有东西
 | Web UI 客户端插件：`dsh.client`、`__ModuleLoader__`、slots、主题、locale | `references/client-plugin.md` |
 | 安装、冒烟测试、排障表、清理 | `references/install-verify.md` |
 | 来源清单、版本差异对照、**未验证项** | `references/sources.md` |
+| **DSH 内部结构**、扩展缝、官方插件解剖、阅读与验证配方 | `references/internals/README.md` |
 
 ## 证据纪律
 
-本技能每条硬结论都标注了来源与核实方式。**外部资料一律不可全信**：官方随包技能 `cordis-plugin-development` 描述的是它自己那一版的行为；第三方教程按各自声明的版本写，而且**版本一升就可能从正确变错误**——2026-10 的 0.2.0 → 0.2.1 升级里，第三方 `dsh-plugin-guide` 曾推荐的"导出 `./icon`"从"本机不生效"变成了"支持"，而反过来 `engines.dsh` 从"纯声明"变成了"强制且优先"。冲突时按 **本机代码/产物 > 官方仓库对应 tag 的文档 > 第三方文档** 取舍，并把分歧写进交付说明。`references/sources.md` 列出了我没有验证到的部分。
+每条硬结论都标了来源与核实方式。**外部资料一律不可全信**：版本一升，昨天的正确就是今天的错误（0.2.0→0.2.1 里 `./icon` 从"不生效"变"支持"，`engines.dsh` 从"纯声明"变"强制优先"）。冲突时按 **本机代码/产物 > 官方对应 tag 文档 > 第三方** 取舍。未验证项见 `references/sources.md`。

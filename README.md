@@ -14,6 +14,7 @@
 |---|---|
 | [dsh-plugin-construction](dsh-plugin-construction/SKILL.md) | 构建/打包/安装/验证/排障 DSH 插件与 bundle：`package.json` 的 `dsh` 字段、`cordis.patch.yml`、Host 插件契约、Web UI 客户端插件、依赖解析与 profile 层序、静默失败排查 |
 | [dsh-skill-authoring](dsh-skill-authoring/SKILL.md) | 编写/组织/验证 DSH 技能：发现根目录与优先级、frontmatter 校验规则、资源目录、调用策略、目录长度上限、"写完为什么没被加载" |
+| [dsh-plugin-construction/references/internals](dsh-plugin-construction/references/internals/README.md) | **DSH 内部结构解构**：Cordis 基底、启动与组合、一次 turn 的运行时、服务地图、扩展缝阶梯、UI 半边、官方插件解剖与重构检查单 |
 
 `dsh-plugin-construction` 的参考文件：
 
@@ -24,6 +25,8 @@
 | [client-plugin.md](dsh-plugin-construction/references/client-plugin.md) | `dsh.client`、`window.__ModuleLoader__`、slot 注册、主题与 locale、展示元数据、验证边界 |
 | [install-verify.md](dsh-plugin-construction/references/install-verify.md) | `dsh plugin` 安装、三级验证阶梯、排障表、清理 |
 | [sources.md](dsh-plugin-construction/references/sources.md) | 来源清单、版本差异对照、实测清单、**未验证项**、审查记录 |
+| [internals/](dsh-plugin-construction/references/internals/README.md) | DSH 内部结构：基底、启动链路、运行时、服务地图、扩展缝、UI、官方插件解剖 |
+| [internals/generated/](dsh-plugin-construction/references/internals/generated/README.md) | 机器生成：服务 / 事件 / slot / 包四张表（随 dsh 版本变化） |
 
 ## 安装
 
@@ -37,6 +40,17 @@ bash scripts/install.sh --dry-run # 只看会做什么
 ```
 
 或者把仓库目录加进配置的 `customSkillDirs`（rank 300），或者手工把技能目录拷进 `~/.dsh/skills/`。装完新开一个会话即可在技能目录里看到它们。
+
+## CI 策略
+
+**不在每次 PR / push 时构建和跑检查。** 这个仓库交付的是数据（Markdown 技能），不是要编译的代码；评审时本地跑两条命令即可：
+
+```sh
+node scripts/validate-skills.mjs      # 技能格式与相对链接
+node scripts/dsh-map.mjs --check      # 内部结构生成表是否过期
+```
+
+CI 只在**发布时**跑：打 `v*` tag、发布 release，或手动 `workflow_dispatch`。
 
 ## 校验
 

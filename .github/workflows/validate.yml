@@ -1,9 +1,17 @@
+# Validation used to run on every push and pull request. It no longer does:
+# this repository ships data (Markdown skills), not code, and a reviewer can run
+# the same two commands locally. Checks run when a release is cut, or on demand.
+#
+# Local equivalent:
+#   node scripts/validate-skills.mjs
+#   node scripts/dsh-map.mjs --check
 name: Validate
 
 on:
   push:
-    branches: [master, main]
-  pull_request:
+    tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -14,5 +22,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - name: Validate skill frontmatter and links
         run: node scripts/validate-skills.mjs
+
+      - name: Check the generated map for drift
+        run: |
+          if [ -d "$(npm root -g)/@deepseek-ai/dsh" ]; then
+            node scripts/dsh-map.mjs --check
+          else
+            echo "no dsh runtime on this runner; run 'node scripts/dsh-map.mjs --check' locally before a release"
+          fi

@@ -58,6 +58,19 @@ function parseFrontmatter(text) {
   return data
 }
 
+/** Every Markdown file shipped inside a skill directory, at any depth. */
+function walkMarkdown(dir) {
+  const out = []
+  for (const name of readdirSync(dir)) {
+    if (name === 'node_modules' || name.startsWith('.')) continue
+    const path = join(dir, name)
+    const stat = statSync(path)
+    if (stat.isDirectory()) out.push(...walkMarkdown(path))
+    else if (name.endsWith('.md')) out.push(path)
+  }
+  return out
+}
+
 function checkRelativeLinks(markdownPath, text) {
   const dir = dirname(markdownPath)
   for (const match of text.matchAll(/\]\(([^)\s#]+)(?:#[^)]*)?\)/g)) {
@@ -104,14 +117,7 @@ for (const name of entries) {
   }
 
   checkRelativeLinks(skillFile, text)
-  for (const sub of ['references', 'scripts', 'assets']) {
-    const dirPath = join(dir, sub)
-    if (!existsSync(dirPath)) continue
-    for (const file of readdirSync(dirPath)) {
-      if (!file.endsWith('.md')) continue
-      checkRelativeLinks(join(dirPath, file), readFileSync(join(dirPath, file), 'utf8'))
-    }
-  }
+  for (const file of walkMarkdown(dir)) checkRelativeLinks(file, readFileSync(file, 'utf8'))
 }
 
 if (found === 0) failures.push('no <name>/SKILL.md bundle found at the repository root')
