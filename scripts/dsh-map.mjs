@@ -231,7 +231,7 @@ files['README.md'] = header + [
     ['[packages.md](packages.md)', 'every shipped package with its manifest roles'],
   ]),
   '',
-  'Regenerate with ' + code('node scripts/dsh-map.mjs') + '; CI runs it with ' + code('--check') + ' and fails on drift.',
+  'Regenerate with ' + code('node scripts/dsh-map.mjs') + '; ' + code('--check') + ' fails when the tables are stale. Run it before a release — CI only validates at release time.',
   '',
 ].join('\n')
 

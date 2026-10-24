@@ -60,7 +60,27 @@ node scripts/validate-skills.mjs
 
 零依赖。**FAIL 集合只放 DSH 真会拒绝、导致技能被静默丢弃的问题**：bundle 形态、kebab-case 名、`name`/`description` 必填、调用布尔值合法、**旧的驼峰调用键**（`disableModelInvocation` 等，DSH 会直接报错丢弃）、相对 Markdown 链接失效。
 
-**WARN 集合放本仓库的风格规则**：description 超过 500 字符（DSH 是**截断**不是丢弃，模型只看得到前 500）、frontmatter `name` 与目录名不一致（DSH 允许，本仓库要求一致）。CI 每次 push/PR 都会跑（`validate.yml`）。
+**WARN 集合放本仓库的风格规则**：description 超过 500 字符（DSH 是**截断**不是丢弃，模型只看得到前 500）、frontmatter `name` 与目录名不一致（DSH 允许，本仓库要求一致）。这两类问题在本地跑 `validate-skills.mjs` 就能发现；CI 只在发布时执行（见上文「CI 策略」）。
+
+## 维护：版本与元信息
+
+**版本号只写在会跟代码一起走的地方，升级 dsh 时必须同一次改完；会漂的元信息不写数字。**
+
+| 位置 | 写什么 | 升级 dsh 时 |
+|---|---|---|
+| README 顶部「时效性」段 | 基线版本 | 手工改 |
+| README 徽章 `DSH-<版本>` | 当前验证版本 | 手工改 |
+| `dsh-plugin-construction/references/sources.md` | 版本差异表、实测清单 | 手工改 |
+| `references/internals/README.md` | 版本基线 | 手工改 |
+| `references/internals/generated/*` | 由 `dsh-map.mjs` 从本机生成 | **不要手改**，重跑生成器 |
+| 仓库 About / description | 只说"做什么" | **不写版本号、不写文档体量** |
+
+改完自检：
+
+```sh
+node scripts/validate-skills.mjs
+node scripts/dsh-map.mjs --check
+```
 
 ## 证据纪律
 

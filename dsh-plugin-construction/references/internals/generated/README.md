@@ -21,4 +21,4 @@ Machine-derived from the installed runtime. **Do not edit these files by hand**:
 | [slots.md](slots.md) | client slot ids and the packages that touch them |
 | [packages.md](packages.md) | every shipped package with its manifest roles |
 
-Regenerate with `node scripts/dsh-map.mjs`; CI runs it with `--check` and fails on drift.
+Regenerate with `node scripts/dsh-map.mjs`; `--check` fails when the tables are stale. Run it before a release — CI only validates at release time.
