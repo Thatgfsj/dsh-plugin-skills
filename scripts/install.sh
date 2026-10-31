@@ -38,13 +38,25 @@ if [ "${#versions[@]}" -eq 0 ]; then
 fi
 
 if [ -z "$version" ]; then
-  version="$(printf '%s\n' "${versions[@]}" | sort -V | tail -1)"
+  # Prefer the version this machine actually runs; fall back to the highest one.
+  detected="$(dsh --version 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')"
+  if [ -n "$detected" ] && [ -d "$repo_root/$detected" ]; then
+    version="$detected"
+    echo "using the installed runtime version: $version"
+  else
+    version="$(printf '%s\n' "${versions[@]}" | sort -V | tail -1)"
+    echo "dsh version not detected (or not in this repo); using the highest directory: $version"
+  fi
 fi
 selected="$repo_root/$version"
 if [ ! -d "$selected" ]; then
   echo "unknown version: $version" >&2
   echo "available: $(printf '%s ' "${versions[@]}")" >&2
   exit 1
+fi
+
+if [ -f "$selected/STATUS.md" ]; then
+  echo "note: $version is a static analysis (not verified on a running runtime); see $version/STATUS.md" >&2
 fi
 
 case "$target_root" in
