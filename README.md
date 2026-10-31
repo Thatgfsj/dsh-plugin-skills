@@ -14,8 +14,10 @@
 
 | 目录 | 状态 | 说明 |
 |---|---|---|
-| [0.2.1-rc.2/](0.2.1-rc.2/) | ✅ 已适配 | 每条结论都在该运行时上核对过；生成表由 `scripts/dsh-map.mjs` 产出 |
-| [0.2.1-rc.3/](0.2.1-rc.3/) | 🚧 待适配 | 目前只有状态说明，**尚未**放入未经该版本验证的内容 |
+| [0.2.1-rc.2/](0.2.1-rc.2/) | ✅ 已实测 | 每条结论都在该运行时上核对过；事实表由**安装产物**生成 |
+| [0.2.1-rc.3/](0.2.1-rc.3/) | 📐 静态分析 | 基于 tag 源码与文档差分；插件作者相关面与 rc.2 逐字节相同。见 [STATUS](0.2.1-rc.3/STATUS.md) |
+| [0.2.1-rc.4/](0.2.1-rc.4/) | 📐 静态分析 | `docs/**` 与 rc.3 零差异，插件面同样无改动。见 [STATUS](0.2.1-rc.4/STATUS.md) |
+| 0.2.1-rc.5 | ⏳ 待办 | 按需求延后处理 |
 
 选版本 = 选与你 `dsh --version` 一致的目录。跨版本结论不保证成立（本仓库已记录过多次行为翻转）。
 
@@ -48,8 +50,8 @@ git clone https://github.com/Thatgfsj/dsh-plugin-skills.git
 cd dsh-plugin-skills
 
 bash scripts/install.sh --dry-run              # 看会装哪个版本、装什么
-bash scripts/install.sh                        # 默认装最高版本目录
-bash scripts/install.sh --version 0.2.1-rc.2   # 指定版本（与 dsh --version 对齐）
+bash scripts/install.sh                        # 默认装与本机 `dsh --version` 同名的目录
+bash scripts/install.sh --version 0.2.1-rc.2   # 显式指定版本
 ```
 
 也可以把某个版本目录加进配置的 `customSkillDirs`（rank 300），或手工把该版本下的技能目录拷进 `~/.dsh/skills/`。装完新开一个会话即可在技能目录里看到它们。
