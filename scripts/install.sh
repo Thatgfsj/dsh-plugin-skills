@@ -55,7 +55,7 @@ if [ ! -d "$selected" ]; then
   exit 1
 fi
 
-if [ -f "$selected/STATUS.md" ]; then
+if [ -f "$selected/STATUS.md" ] && ! grep -q '已实测' "$selected/STATUS.md"; then
   echo "note: $version is a static analysis (not verified on a running runtime); see $version/STATUS.md" >&2
 fi
 
