@@ -8,7 +8,7 @@
 |---|---|
 | `dsh --version` | `0.2.2-rc.1` |
 | 安装产物体量 | 330 个 `@deepseek-ai/*` 子包（0.2.1-rc.4 源码树 343） |
-| 事实表（安装口径） | 330 包 / **112 服务** / **102 事件** / **109 slot**（0.2.1-rc.2 为 305/104/94/100） |
+| 事实表（安装口径） | 330 包 / **112 服务** / **102 事件** / **109 slot**（历史 0.2.1-rc.2：305/104/94/100） |
 | 插件加载冒烟 | `dsh --profile web --patch <overlay> --help`：`apply` 执行、`config` 传入、`ctx.effect` 注册与释放均正常 |
 | 组合层 | `--dump-config` 输出 52 条 `# ==` 层注释 |
 | `engines.dsh` 兼容门 | 仍强制：`engines.dsh: ">99.0.0"` → `installation rejected ... requirements {"engines.dsh":">99.0.0"}` + `nothing was installed` |

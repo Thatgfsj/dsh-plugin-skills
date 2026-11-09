@@ -1,12 +1,12 @@
 # 09 自己验证：把"听说"变成"我看到了"
 
-适用 **0.2.1-rc.2**。这份技能的每条结论都应该能被你复现；复现不了就不要信，包括我写的。
+适用 **0.2.2-rc.1**（本机运行时；每条手写结论的取证版本见 `../sources.md`）。这份技能的每条结论都应该能被你复现；复现不了就不要信，包括我写的。
 
 ## 先定位你机器上的 dsh
 
     dsh --version                                   # 运行时版本，一切结论的锚点
     npm root -g                                     # 全局包根
-    ls "$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai" | wc -l   # 子包数（本机 305）
+    ls "$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai" | wc -l   # 子包数（本机 330）
 
 安装产物路径：`<npm root -g>/@deepseek-ai/dsh/node_modules/@deepseek-ai/<pkg>/`。**读源码就看这里**，不要凭记忆。
 
@@ -61,8 +61,8 @@
 安装包里**没有** `docs/`。要读官方文档，按 tag 取源码：
 
     git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness /tmp/dsh-src
-    cd /tmp/dsh-src && git fetch --depth 1 origin refs/tags/dsh-v0.2.1-rc.2:refs/tags/dsh-v0.2.1-rc.2
-    git archive dsh-v0.2.1-rc.2 | tar -x -C /tmp/dsh-021rc2
+    cd /tmp/dsh-src && git fetch --depth 1 origin refs/tags/dsh-v0.2.2-rc.1:refs/tags/dsh-v0.2.2-rc.1
+    git archive dsh-v0.2.2-rc.1 | tar -x -C /tmp/dsh-022rc1
 
 **必须对 tag，不要看 master**——今天 master 的行为可能已经是下一版了。
 

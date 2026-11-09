@@ -22,13 +22,19 @@
 
 ## 变更热点（源码）
 
-- `mcp/mcp-client`、`mcp/mcp-resources`
-- `web/*`：`web-search-exa`、`web-search-perplexity`、`web-search-deepseek`、`web-fetch-http`、`web-deepseek-api`、`web`、`tool-web`
-- `workspace/workspace`、`workflow/*`（各一处）
-- 大量 `package.json` 版本号同步（这也是 diff 文件数偏高的原因）
+rc.3 → rc.4 共 **369 个改动文件，其中 348 个是 `package.json`**（版本号同步），diff 文件数偏高主要来自这里。`web/*`、`workspace/workspace`、`workflow/*` 的改动同样只是版本号，**不是行为改动**。
+
+真正落到源码的只有：
+
+- `packages/client/ui-conversation`：`src/client/locales.ts`、`src/client/skeleton/ConversationSession.tsx`
+- `packages/llm/llm-deepseek-account/src/index.ts`
+- `packages/mcp/mcp-client/src/connection.ts`
+- 新增 e2e 测试 `apps/cli/tests/profiles/acp/tests/stdout.expected.e2e.ts`
+
+所以本版对插件作者没有契约层变化（见上面「插件作者相关面：无改动」）。
 
 ## 未验证项
 
 - 全部运行时行为
 - 生成表来自源码树（口径同 rc.3）
-- MCP 与 web 工具的改动是否影响插件可用性，未实测
+- MCP 客户端的改动是否影响插件可用性，未实测

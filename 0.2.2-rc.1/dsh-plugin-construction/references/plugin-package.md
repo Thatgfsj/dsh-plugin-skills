@@ -1,6 +1,6 @@
 # package.json 的 dsh 字段、bundle 与 profile
 
-事实来源：本机 `@deepseek-ai/dsh-package-manifest/lib/types/types.d.ts`（**0.2.1-rc.2**，已读源码）+ 官方 tag `dsh-v0.2.1-rc.2` 的 `docs/user/develop/basic/publish.md`、`packages/boot/app-boot/README.md`。字段名与可选性以类型定义为准。
+事实来源：本机 `@deepseek-ai/dsh-package-manifest/lib/types/types.d.ts`（**0.2.2-rc.1**，已读安装产物源码）+ 官方 tag `dsh-v0.2.2-rc.1` 的 `docs/user/develop/basic/publish.md`、`packages/boot/app-boot/README.md`。字段名与可选性以类型定义为准。
 
 ## 顶层声明（`DshPackageManifest`）
 
@@ -78,11 +78,11 @@ dsh?: {
 - **一处真实分歧**：官方仓库内部包的约束脚本把 `@deepseek-ai/schemastery` 归进 `dependencies`（理由：它是运行时校验器，仓库内靠 workspace 解析，不存在实例不一致）。**这个例外只对 monorepo 内部包成立**；对外部 link 安装的第三方插件，实测不声明 peer 会直接 `ERR_MODULE_NOT_FOUND`。照 `publish.md` 的 peer 规则走更安全——关键是**必须声明**，声明在别处会引入第二份实例。
 - 独立版本的第三方依赖、无状态的 dsh 工具包放 `dependencies`。
 - **反例实测**：`index.js` 里 `import Schema from '@deepseek-ai/schemastery'`，包只 link 进 profile、没声明 peer → `ERR_MODULE_NOT_FOUND`（直接用 node 从该目录 import 也是同样错误），插件行**静默不加载**；把该包加进 `peerDependencies` 后同一份代码正常加载。
-- **为什么非 peer 不可**（0.2.1-rc.2 实测三连）：在 dsh 安装目录里 `import('@deepseek-ai/schemastery')` **成功**（宿主那份在这儿），但从**插件自己的目录**和**profile 目录**都失败：`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'`。所以宿主共享的包不能靠"运行时总能找到"，必须声明成 peer 让解析走到宿主那份——**声明错了不是报错，是整行没反应**。
+- **为什么非 peer 不可**（历史：0.2.1-rc.2 实测三连；0.2.2 未重跑）：在 dsh 安装目录里 `import('@deepseek-ai/schemastery')` **成功**（宿主那份在这儿），但从**插件自己的目录**和**profile 目录**都失败：`ERR_MODULE_NOT_FOUND: Cannot find package '@deepseek-ai/schemastery'`。所以宿主共享的包不能靠"运行时总能找到"，必须声明成 peer 让解析走到宿主那份——**声明错了不是报错，是整行没反应**。
 
 ## 版本兼容门
 
-`dsh plugin add` 在 pnpm 运行前检查，**也适用于 profile 启动时对每个已声明 bundle 的复检**。判定顺序（0.2.1-rc.2 源码 + 实测双重确认）：
+`dsh plugin add` 在 pnpm 运行前检查，**也适用于 profile 启动时对每个已声明 bundle 的复检**。判定顺序（0.2.1-rc.2 源码 + 实测双重确认；0.2.2-rc.1 上拒绝路径已复测）：
 
 1. 清单里有 `engines.dsh` → **只看它**，`@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 的 `peerDependencies` 全部忽略。
 2. 没有 `engines.dsh` → 每个 dsh peer 区间都必须匹配。
@@ -93,7 +93,7 @@ dsh?: {
 拒绝时安装器打印（实测原文）：
 
 ```
-dsh: installation rejected: Plugin bundled-demo@1.0.0 is incompatible with dsh 0.2.1-rc.2: requirements {"engines.dsh":">99.0.0"}. Running it may cause crashes or data loss. Update the plugin or install a plugin version compatible with this dsh runtime. ...
+dsh: installation rejected: Plugin bundled-demo@1.0.0 is incompatible with dsh 0.2.2-rc.1: requirements {"engines.dsh":">99.0.0"}. Running it may cause crashes or data loss. Update the plugin or install a plugin version compatible with this dsh runtime. ...
 dsh: nothing was installed.
 ```
 
