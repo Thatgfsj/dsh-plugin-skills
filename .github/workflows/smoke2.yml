@@ -1,0 +1,9 @@
+name: SmokePush
+on:
+  push:
+    branches: ['test/ci-push']
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi

@@ -1,0 +1,9 @@
+name: SmokeMaster
+on:
+  push:
+    branches: [master]
+jobs:
+  s:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo master-ok
