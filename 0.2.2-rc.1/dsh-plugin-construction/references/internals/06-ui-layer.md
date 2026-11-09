@@ -1,6 +1,6 @@
 # 06 浏览器半边：客户端是怎么接上宿主的
 
-来源：`docs/subsystems/{client-modules,slots,web-client,web,client-resources}.md`、`packages/client/AGENTS.md`、`packages/client/modules/README.md`。适用 **0.2.1-rc.2**。具体写法见 `../client-plugin.md`，本篇讲**它怎么运转**。
+来源：`docs/subsystems/{client-modules,slots,web-client,web,client-resources}.md`、`packages/client/AGENTS.md`、`packages/client/modules/README.md`。结构事实适用 **0.2.2-rc.1**（取证于 0.2.1-rc.2；客户端渲染始终未实测，见文末）。具体写法见 `../client-plugin.md`，本篇讲**它怎么运转**。
 
 ## 宿主与浏览器各管一半
 
@@ -27,7 +27,7 @@
 
 - 每个 slot 有一个 `ownerKey`；owner 塌缩时注册被回收，恢复时重装。
 - 注册即声明：某个 `name` 的注册条目成为唯一被允许渲染该键的条目；注册未声明的 slot、重复声明子 slot 会在加载时抛错。
-- slot 清单随版本变（本机 0.2.1-rc.2 是 100 个，见 `generated/slots.md`）。**不要硬编码清单，要 grep 或读生成表。**
+- slot 清单随版本变（本机 **0.2.2-rc.1** 是 **109** 个，见 `generated/slots.md`；历史：0.2.1-rc.2 时是 100 个）。**不要硬编码清单，要 grep 或读生成表。**
 
 ## 客户端资源
 

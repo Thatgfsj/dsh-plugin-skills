@@ -1,6 +1,6 @@
 # 07 官方插件解剖：要重构它们，先知道它们靠什么站着
 
-来源：`dsh-v0.2.1-rc.2` 源码树 `packages/**`、各包 README、`docs/capability-seams.md`（生成）。本篇给**结构性事实**与**替换检查单**；具体实现请读对应 `src/index.ts`。
+来源：`dsh-v0.2.1-rc.2` 源码树 `packages/**`、各包 README、`docs/capability-seams.md`（生成）。本篇给**结构性事实**与**替换检查单**；具体实现请读对应 `src/index.ts`。（该源码树是 0.2.1-rc.2 的历史取证基线；0.2.2-rc.1 的结构未逐条重验。）
 
 ## 官方包的统一骨架
 

@@ -1,6 +1,6 @@
 # 01 基底：Cordis 是怎么托住整个 DSH 的
 
-来源：`docs/cordis-primer.md`（全文）、`vendor/cordis/src/{reflect,fiber,events}.ts`、`docs/subsystems/scope.md`。适用 **dsh 0.2.1-rc.2**（vendored cordis 4.0.5）。
+来源：`docs/cordis-primer.md`（全文）、`vendor/cordis/src/{reflect,fiber,events}.ts`、`docs/subsystems/scope.md`。结构事实适用 **dsh 0.2.2-rc.1**（vendored cordis **4.1.0**），取证于 0.2.1-rc.2（cordis 4.0.5），未逐条重验。
 
 ## 五句话
 

@@ -6,7 +6,7 @@ whenToUse: 用户要求把资料整理成 skill、新增或修改 SKILL.md、排
 
 # 编写 DSH 技能（SKILL.md）
 
-事实来源：本机 **0.2.2-rc.1** 的安装产物与 `dsh-v0.2.2-rc.1` tag 源码。技能子系统在 0.2.1 → 0.2.2 之间无变化（`dsh-skill` 源码逐字节相同）。
+事实来源：本机 **0.2.2-rc.1** 的安装产物与 `dsh-v0.2.2-rc.1` tag 源码。`dsh-skill` 注册表与 frontmatter 校验在 0.2.1 → 0.2.2 之间未变（源码逐字节相同）；变的是**发现与目录**两面：`skill-filesystem` 的单根失败处理、`tool-skill` 的 catalog incomplete 语义（见下两节）。
 
 ## 技能放哪里（发现是**一层深**，不递归）
 
@@ -23,6 +23,7 @@ whenToUse: 用户要求把资料整理成 skill、新增或修改 SKILL.md、排
 - 只识别 `<root>/<name>/SKILL.md` 和 `<root>/<name>.md` 两种形态。**`<root>/a/b/SKILL.md` 这种嵌套不会被发现**，不要按"技能集合目录"来组织。
 - 反过来要注意：扁平形态下，根目录里**任何 `*.md` 都是候选**。把 `customSkillDirs` 指向一个仓库根，`README.md` 也会被当成技能读一遍，然后因为缺 frontmatter 被丢弃并在日志里告警。
 - 重名时：离得近的层赢；同一层里按 rank、提供方注册顺序、提供方内部顺序裁决。被遮蔽的定义没有 API 可查。
+- **单个根目录坏了不再让整次发现失败（0.2.2 起）**：`skill-filesystem` 对每个根单独 try/catch，失败只打一条 `ctx.logger.warn`：`skill root "<path>" skipped: <原因>. Other roots remain available; check this directory's permissions and symlinks. Discovery retries on the next lookup.`，其余根照常返回；这次观测被标成 `complete=false`（旧版在这里直接抛错，整次列举失败）。
 
 ## frontmatter（YAML，必须两个字段）
 
@@ -70,13 +71,15 @@ whenToUse: 可选的补充触发说明
 - **模型目录只由 `name` + 空白归一化并截断后的 `description`（以及 `disable-model-invocation` 造成的过滤）决定**：只有改这几项才会改变模型看到的目录内容。纯正文、`whenToUse`、`metadata`、`user-invocable` 的改动都不刷新目录，只影响下一次加载；`references/` 等资源目录的改动同样不进目录。
 - 因为 digest 用的是**截断后**的 description，改动落在 500 字符窗口之外时，模型目录**不会**刷新（但下一次加载会读到新正文/新 frontmatter）——把重要信息写在前面，也让改动更容易被模型感知。
 - 发现是"目录 + 正文"分离的：目录缓存有上限（注册表 `collectCacheMaxEntries` 默认 128），正文从不缓存。
+- **发现不完整时目录照样发布（0.2.2 起）**：`tool-skill` 以前遇到 `snapshot.complete === false` 就直接 `return decision`，模型看到的还是上一次的旧目录；现在会发布一版替换目录并带 `incomplete: true`，正文写明 `Skill discovery is incomplete...` 和 `Some skills could not be checked. Only confirmed skills are listed; a lower-priority definition of the same name may be selected when a preferred source is unavailable. Discovery will be retried on the next request.`。目录 digest 把完整性也算进去，所以根目录恢复后**即使条目没变也会再发布一次**，把过期警告清掉。
 
 ## 写完之后怎么验证
 
 1. **看会话目录**：新建一个会话（或让宿主刷新）后，技能应出现在可用技能列表里。实测：把技能写进 `~/.dsh/skills/` 后，当前会话的技能目录立刻出现了它（watcher 生效）。
 2. **没出现就查日志**：`skill file <path> ignored: ...` 会点名原因（缺字段 / 名字非法 / frontmatter 非法 / 调用布尔值非法）。
 3. **路径自检**：确认是 `<root>/<name>/SKILL.md` 或 `<root>/<name>.md`，且 `<root>` 是上表里的某一层；`~/.dsh/skills/.system/` 下的东西会被跳过。
-4. 有 `skill` 工具时直接按名字加载一次，正文能返回即为可用。两种 API 的失败形态不同：`skill` 工具对「名字非法 / 未知或已下线 / 不可被模型调用」三种情况都**抛错**；而注册表 API `ctx.skills.get(name)` 对非法名字返回 `undefined`、不报错。
+4. **根目录级失败不要误判成"没有技能"**：日志里找 `skill root "..." skipped`；这种情况下模型目录会显示"发现不完整"而不是空的，修好权限/symlink 后下一次请求自动重试（0.2.2 起）。
+5. 有 `skill` 工具时直接按名字加载一次，正文能返回即为可用。两种 API 的失败形态不同：`skill` 工具对「名字非法 / 未知或已下线 / 不可被模型调用」三种情况都**抛错**；而注册表 API `ctx.skills.get(name)` 对非法名字返回 `undefined`、不报错。
 
 ## 内容写法
 

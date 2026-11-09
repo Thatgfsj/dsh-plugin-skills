@@ -2,7 +2,7 @@
 <!-- Regenerate: node scripts/dsh-map.mjs -->
 # Generated map
 
-Machine-derived from the installed runtime. **Do not edit these files by hand**: edit
+Machine-derived from the dsh 0.2.1-rc.4 source tree. **Do not edit these files by hand**: edit
 `scripts/dsh-map.mjs` or the hand-written notes in `references/internals/` instead.
 
 | runtime | 0.2.1-rc.4 |
@@ -22,3 +22,5 @@ Machine-derived from the installed runtime. **Do not edit these files by hand**:
 | [packages.md](packages.md) | every shipped package with its manifest roles |
 
 Regenerate with `node scripts/dsh-map.mjs`; `--check` fails when the tables are stale. Run it before a release — CI only validates at release time.
+
+Source-tree mode (this table's provenance): `node scripts/dsh-map.mjs --source /tmp/dsh-021rc4 --out <目录>`.

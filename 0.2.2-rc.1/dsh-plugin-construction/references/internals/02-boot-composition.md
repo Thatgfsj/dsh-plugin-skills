@@ -1,6 +1,6 @@
 # 02 启动与组合：一行插件是怎么被挂上去的
 
-来源：`docs/architecture.md`（Profiles and bundles / Application launch）、`packages/boot/app-boot/README.md`、`apps/cli/reference/README.md`、`docs/subsystems/boot.md`。适用 **0.2.1-rc.2**，其中"跳过/禁用"的文案为本机实测。
+来源：`docs/architecture.md`（Profiles and bundles / Application launch）、`packages/boot/app-boot/README.md`、`apps/cli/reference/README.md`、`docs/subsystems/boot.md`。启动链路与"跳过/禁用"文案取证于 **0.2.1-rc.2**（当时本机实测）；结构事实适用 **0.2.2-rc.1**，0.2.2 的增量变化见文末「0.2.2 的 Loader/Include 写入模型」。
 
 ## 一条链，五段
 

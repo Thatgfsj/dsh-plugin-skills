@@ -1,6 +1,6 @@
 # Host 插件契约
 
-来源：官方 `docs/user/develop/{basic,framework}/*.zh.md`、`packages/AGENTS.md`、随 dsh 安装的 `cordis-plugin-development` 技能；行为结论已在本机 **0.2.1-rc.2**（vendored cordis **4.0.5**）上实测。这一层契约在 0.2.0 → 0.2.1 之间没有破坏性变更。
+来源：官方 `docs/user/develop/{basic,framework}/*.zh.md`、`packages/AGENTS.md`、随 dsh 安装的 `cordis-plugin-development` 技能；行为结论取证于本机 **0.2.1-rc.2**（vendored cordis 4.0.5），并在 **0.2.2-rc.1**（cordis **4.1.0**）上复测了插件加载 / 配置传入 / effect 注册与释放。这一层契约在 0.2.0 → 0.2.1 之间没有破坏性变更；0.2.1 → 0.2.2 的破坏性变更不在本文件（见 `internals/02-boot-composition.md`、`plugin-package.md` 与 `sources.md`）。
 
 ## 三种导出形态（不要混用）
 
@@ -44,7 +44,7 @@ Fiber 状态机：`PENDING → LOADING → ACTIVE`，失败进 `FAILED`，`ACTIV
 - 卸载时 disposer 按注册逆序**开始**调用，但多个异步 disposer 并发，**不保证逐个完成**。有顺序依赖的清理要放进同一个 `ctx.effect()` 的返回函数里串行等待。
 - `ctx.plugin(child)` 建子 Fiber，随父卸载。
 
-实测（本机）：插件 `apply` 里 `console.log` + `ctx.effect` 注册，`dsh --profile web --patch <overlay> --help` 启动后依次打印 loaded / registered / disposed。
+实测（本机 0.2.2-rc.1）：插件 `apply` 里 `console.log` + `ctx.effect` 注册，`dsh --profile web --patch <overlay> --help` 启动后依次打印 `apply ran` / `effect registered` / `effect disposed`。
 
 ## 配置：Config
 

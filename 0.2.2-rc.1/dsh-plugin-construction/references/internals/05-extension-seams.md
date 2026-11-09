@@ -1,6 +1,6 @@
 # 05 扩展缝：从最弱到最强，先问"能不能不写代码"
 
-来源：`docs/architecture.md`（Events）、`docs/subsystems/{tools,slots,skills,system-prompt,scope}.md`、`packages/core/tools/README.md`。适用 **0.2.1-rc.2**。
+来源：`docs/architecture.md`（Events）、`docs/subsystems/{tools,slots,skills,system-prompt,scope}.md`、`packages/core/tools/README.md`。结构事实适用 **0.2.2-rc.1**（取证于 0.2.1-rc.2，未逐条重验）。
 
 ## 阶梯（**从上往下选，第一条够用就停**）
 

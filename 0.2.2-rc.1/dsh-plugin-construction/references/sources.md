@@ -6,12 +6,14 @@
 
 | 项 | 值 |
 |---|---|
-| 本机运行时 | `dsh --version` = **0.2.1-rc.2**（2026-10 采样；npm `next` 通道。同一时刻 `latest` 仍是 `0.2.0-rc.2`，`alpha` 是 `0.2.1-alpha.5`） |
-| 全局安装位置 | `~/.npm-global/lib/node_modules/@deepseek-ai/dsh`，子包在 `dsh/node_modules/@deepseek-ai/*`（**305** 个；0.2.0-rc.2 时是 288 个） |
-| vendored cordis | **4.0.5**（0.2.0-rc.2 时是 4.0.4） |
-| 官方仓库快照 | 精确 tag **`dsh-v0.2.1-rc.2`**（`git fetch --depth 1 origin refs/tags/dsh-v0.2.1-rc.2`），解包在 `/tmp/dsh-021rc2`；对照用的旧 tag `dsh-v0.2.0-rc.2`。**看文档必须对 tag，不要看 master** |
+| 本机运行时 | `dsh --version` = **0.2.2-rc.1**（2026-11 采样；npm `latest` 与 `next` 均为 `0.2.2-rc.1`，2026-11-04 发布） |
+| 全局安装位置 | `~/.npm-global/lib/node_modules/@deepseek-ai/dsh`，子包在 `dsh/node_modules/@deepseek-ai/*`（**330** 个；0.2.1-rc.4 源码树是 343 个，0.2.1-rc.2 安装产物是 305 个） |
+| vendored cordis | **4.1.0**（历史：0.2.1-rc.2 时是 4.0.5，0.2.0-rc.2 时是 4.0.4） |
+| 官方仓库快照 | 精确 tag **`dsh-v0.2.2-rc.1`**（`git fetch --depth 1 origin refs/tags/dsh-v0.2.2-rc.1`），解包在 `/tmp/dsh-022rc1`；历史对照 tag `dsh-v0.2.1-rc.2`（解包 `/tmp/dsh-021rc2`）与 `dsh-v0.2.0-rc.2`。**看文档必须对 tag，不要看 master** |
 | Node / pnpm | `node v24.21.0`、`pnpm 12.11.2` |
 | 第三方参考 | npm `dsh-plugin-guide@0.3.33`（PerryLink，知识库型插件 + agent 技能）；GitHub `lxj5820/dsh-boot-animation`；`dsh-dream-skin@10.15.0`（web profile 已装） |
+
+> **历史采样说明**：0.2.1-rc.2 那一轮是 2026-10 采样、走 npm `next` 通道，当时 `latest` 仍是 `0.2.0-rc.2`、`alpha` 是 `0.2.1-alpha.5`。下表的「0.2.1-rc.2」列、以及下面的「本机实测清单」都是那一轮的历史记录，不代表当前版本。
 
 ## 一手材料（优先级从高到低）
 
@@ -20,9 +22,9 @@
 3. **官方随包技能**：`@deepseek-ai/dsh-agent-preset/skills/cordis-plugin-development/**`、`cordis-composition-reference`、`editing-cordis-compositions`。**它假定调用方有 `plugin_manager` / `cordis_inspect_query` 工具**，普通会话没有，所以本技能额外给了纯 CLI 路径。
 4. **第三方**：`dsh-plugin-guide` 的 `SKILL.md`/`guide/*`；`dsh-boot-animation` 的源码注释。**第三方文档最容易随版本从正确变错误**，只当线索。
 
-## 版本差异对照（同一句话在新旧版本含义不同）
+## 版本差异对照（0.2.0 → 0.2.1，历史）
 
-| 主题 | 0.2.0-rc.2 | **0.2.1-rc.2（本机，已实测）** |
+| 主题 | 0.2.0-rc.2 | **0.2.1-rc.2（历史：当时的本机实测）** |
 |---|---|---|
 | `engines.dsh` | 纯声明，安装/启动都**不**检查；兼容性只看 `@deepseek-ai/dsh*` peer | **强制**：安装与 profile 启动都检查，且**声明了它就单独决定**、peer 被忽略；没有才回退 peer。失败键名从 `peers` 改成 `requirements`。见 `docs/upgrade-guide/v0.2.1-alpha.3/plugin-engines-dsh/` |
 | 插件图标 | 只认顶层 `package.json.icon` | **顶层 `icon` 与 `exports["./icon"]` 都支持**，顶层优先（`iconOf()`：有 manifest icon 就不再看导出） |
@@ -35,7 +37,23 @@
 
 **由此得到的一条硬教训**：第三方 `dsh-plugin-guide` 里"交付必须导出 `./icon`"这条，在 0.2.0-rc.2 上**不成立**，到 0.2.1-rc.2 又**成立**了；而 `engines.dsh` 反过来从"不影响"变成"最重要的一条"。**验收标准永远是本机 `dsh --version` 对应的那份源码，不是任何文档，包括这份。**
 
-## 本机实测清单（0.2.1-rc.2，可复现）
+## 0.2.1-rc.2 → 0.2.2-rc.1 关键差异（本机实测）
+
+0.2.1 → 0.2.2 是**跨 minor** 升级，破坏性变更集中在下面五处。已验证范围见 `../../STATUS.md`；表中「正文」列为对应落点。
+
+| 主题 | 0.2.2 起的行为 | 正文 |
+|---|---|---|
+| 补丁与 Include 写入语义 | Loader 1.0.0-rc.8 / Include 1.1.1：`applyEntryPatches()` **总是返回克隆**；`EntryTree.write()` 移除，自定义树改为实现 `commit(change)`；Include 用 journal 落盘、**文件编辑优先**、冲突记日志，运行期改动写回**父 patch**；**patch 插入的行在运行期的自我修改不跨重启保留** | `internals/02-boot-composition.md`、`plugin-package.md` |
+| session projection | 帧形状改为每事件一帧含 `changes`；`snapshot()` 只算请求的单元；`cachedSnapshot` 弃用；新增 `onEventChanged`；某个 key 的最后一个注册者释放后该单元变 **predecessor** | `host-plugin.md` |
+| `dsh.bundle` 新字段 | `dsh.bundle.platforms`、`dsh.bundle.listedByDefault`，顶层新增 `optionalDependencies` | `plugin-package.md` |
+| 客户端资源 | 活动客户端包改走**带内容修订**的 `./assets/*` 导出，URL 不保证稳定 | `client-plugin.md` |
+| 文件工具策略 | `fs-observation-policy` 出厂 `disabled: true`；`write`/`edit` 不再强制"先读后写"；新增 `apply_patch`（base 系 profile 的 `tool-fs` 与 Web `standard` preset 启用） | `../../STATUS.md`（正文未展开；`apply_patch` 实际行为未测） |
+
+**没有变**：清单兼容门（`engines.dsh` 优先）、展示元数据与子路径规则、`dsh-skill` 注册表与 frontmatter 校验。**变了的**技能发现/目录语义在 `skill-filesystem` 与 `tool-skill`，见 `../dsh-skill-authoring/SKILL.md`。
+
+## 本机实测清单（历史：0.2.1-rc.2，可复现）
+
+> 下面这一轮是 0.2.1-rc.2 的历史实测记录；0.2.2-rc.1 上重跑过的项见 `../../STATUS.md`。
 
 | 验证项 | 做法 | 结果 |
 |---|---|---|
@@ -81,15 +99,14 @@
 
 ## 0.2.1-rc.4 静态分析记录（未在本机运行）
 
-- 基线：tag `dsh-v0.2.1-rc.4`；本机运行时仍为 0.2.1-rc.2，**未做运行时验证**。
+- 基线：tag `dsh-v0.2.1-rc.4`；当时本机运行时仍为 0.2.1-rc.2，**未做运行时验证**。
 - `docs/**` 与 rc.3 **零差异**；插件作者相关六个核心文件同样零差异。
-- 变更集中在 MCP 客户端/资源、web 搜索与抓取工具、workspace/workflow 单点，以及大量 version 同步。
+- 变更集中在 MCP 客户端 `mcp-client/src/connection.ts`、`client/ui-conversation` 的两个文件、`llm/llm-deepseek-account/src/index.ts`，以及大量 `package.json` 版本号同步；`web/*`、`workspace`、`workflow` 只有版本号（与 rc.4 目录的 STATUS 一致）。
 - 源码口径与 rc.3 相同：343 / 110 / 88 / 80。
 - 详见 `../../STATUS.md`。
 
 ## 0.2.2-rc.1 记录（本机实测）
 
-- 本机运行时 `0.2.2-rc.1`；安装 330 子包；事实表 330 包 / 112 服务 / 102 事件 / 109 slot。
-- 运行时验证：插件加载冒烟（apply / effect 注册 / 释放）、`--dump-config` 层、`engines.dsh` 兼容门拒绝、`dsh plugin --help`、新增清单字段（类型定义）。
-- 相对 0.2.1 的破坏性变更：Loader/Include 写入语义、session projection 帧与快照语义、`dsh.bundle` 新字段、客户端 `./assets/*` 资源、fs 观察策略默认关闭并新增 `apply_patch`。
+- 本机运行时 `0.2.2-rc.1`；安装 330 子包；事实表 330 包 / 112 服务 / 102 事件 / 109 slot（由安装产物生成）。
+- 运行时验证与未验证项汇总在 `../../STATUS.md`；跨版本差异对照见上文「0.2.1-rc.2 → 0.2.2-rc.1 关键差异」。
 - 未验证：UI 渲染、Include journal 冲突写回、`apply_patch` 实际行为。

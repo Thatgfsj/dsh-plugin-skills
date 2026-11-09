@@ -22,7 +22,7 @@
 | `01-substrate-cordis.md` | 基底 Cordis：Context / Service / Fiber / effect / scope / 五种派发 | 不理解 `inject` 到底在干什么、为什么注册要回收时 |
 | `02-boot-composition.md` | 启动链路：CLI → profile → bundle → patch 层 → loader → fiber 树 | 想知道"我这一行是什么时候、被谁、以什么顺序挂上去的"时 |
 | `03-agent-runtime.md` | 一次 turn 的完整数据流：输入 → 提示词 → LLM → 工具环 → 会话日志 | 要介入模型行为、工具调用、上下文时 |
-| `04-service-map.md` | 104 个服务按键的家族图与用途 | 找"这个能力归谁、我该 inject 谁"时 |
+| `04-service-map.md` | 112 个服务按键的家族图与用途 | 找"这个能力归谁、我该 inject 谁"时 |
 | `05-extension-seams.md` | 扩展缝阶梯：从最弱到最强，每种的代价与观测性 | **动手前必读**，决定插哪一层 |
 | `06-ui-layer.md` | 浏览器半边：client modules、slots、RPC、资源 | 要做 UI 时 |
 | `07-official-plugin-anatomy.md` | 官方插件解剖 + 重构检查单 | 要重写/替换官方实现时 |
@@ -35,15 +35,15 @@
 
 | 表 | 内容 | 现规模 |
 |---|---|---|
-| `generated/services.md` | 每个 `ctx.<name>` 句柄、归属包、源码行号 | 104 |
-| `generated/events.md` | 事件契约名、**派发模式**、声明方、派发方 | 94 |
-| `generated/slots.md` | 客户端 slot id 与触碰它的包 | 100 |
-| `generated/packages.md` | 全部随包分发的包与清单角色 | 305 |
+| `generated/services.md` | 每个 `ctx.<name>` 句柄、归属包、源码行号 | 112 |
+| `generated/events.md` | 事件契约名、**派发模式**、声明方、派发方 | 102 |
+| `generated/slots.md` | 客户端 slot id 与触碰它的包 | 109 |
+| `generated/packages.md` | 全部随包分发的包与清单角色 | 330 |
 
 手写篇章负责**解释**，生成表负责**事实**。两者冲突时以生成表和安装产物为准。
 
 ## 事实纪律
 
-- 每条硬结论都写了它在 `ds-v0.2.1-rc.2` 里对应哪个文件/文档；对不上就是过期了。
+- 每条硬结论都写了它在 `dsh-v0.2.2-rc.1`（或标注的历史版本）里对应哪个文件/文档；对不上就是过期了。
 - 上游原文用路径引用，不整段搬运：`docs/architecture.md`、`docs/cordis-primer.md`、`docs/subsystems/<name>.md`、`packages/<group>/<pkg>/README.md`。
 - 无法实测的部分明确写"未验证"，不要用推断填补。

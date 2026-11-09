@@ -14,7 +14,7 @@ dsh --profile <name> --dump-default-config   # 去掉用户层与 --patch 后的
 - **`--profile` 必须写在 pnpm 参数之前**（0.2.1 新规则）：`dsh plugin` 只从第一个它不认识的 token 开始转发，`--profile` 写晚了会报 `required option '--profile <name>' not specified`。`dsh plugin --help` 现在打的是 **dsh 自己的帮助**，不再是 pnpm 的；要 pnpm 的帮助就把它写在 pnpm 命令之后：`dsh plugin --profile <p> add --help`，或用 `dsh plugin --profile <p> help`。
 - **相对路径锚定在调用目录**：`.`、`../plugin`、`file:`、`link:` 都先相对**你执行命令的目录**解析，所以在插件仓库里 `dsh plugin --profile <p> add .` 装的就是当前 checkout。
 - 第一次使用会自动初始化 profile（`@deepseek-ai/dsh-base` 作为第一个 bundle），并在包声明了 `dsh.bundle` 时把它追加进 `dsh.profile.bundles`。
-- 目录安装**不复制文件**（实测 `add <目录>` 35–64 ms 完成、不下载），**改完文件不需要重装**；但换新的 JS 模块代需要重启宿主。实测 profile 的依赖会写成 `"<包名>": "link:/abs/path"`（0.2.1-rc.2 直接验证）。
+- 目录安装**不复制文件**（实测 `add <目录>` 35–64 ms 完成、不下载），**改完文件不需要重装**；但换新的 JS 模块代需要重启宿主。实测 profile 的依赖会写成 `"<包名>": "link:/abs/path"`（0.2.1-rc.2 直接验证；0.2.2-rc.1 未重跑这条）。
 - 装完会**自动对齐** `dsh.profile.bundles`：声明了 `dsh.bundle.patch` 的依赖入栈，没声明的保持普通依赖并打一次性警告（实测原文 `declares no dsh.bundle — installed as a plain dependency, not a profile layer`），移除依赖则离栈。
 - **不要手写 profile 的 `package.json`/`cordis.patch.yml`，不要在 profile 目录里跑 pnpm**（有 `plugin_manager` 工具的会话用 `action: install_bundle`；没有就用上面的 CLI）。
 
@@ -22,7 +22,7 @@ dsh --profile <name> --dump-default-config   # 去掉用户层与 --patch 后的
 
 `@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-web-app` 这类随 dsh 安装的 bundle，**写进 `dsh.profile.bundles` 时从 dsh 安装目录解析**（实测：手工往测试 profile 的 `bundles` 里加 `@deepseek-ai/dsh-web-app`，`--dump-config` 立刻出现该层，无需 pnpm）。
 
-但 `dsh plugin add @deepseek-ai/dsh-web-app` 会去**公共 registry** 查版本。0.2.0-rc.2 上实测会拿到过期的 `0.0.1-rc.1` 并被兼容性检查拒绝（那次的原文见 `references/sources.md`）。**0.2.1-rc.2 上我没有重跑这一步**（升级后 registry 上该包的版本可能已经变了），所以别把"一定拿到旧版"当成结论——只要 `add` 输出 `installation rejected`，就按下面的逻辑处理。
+但 `dsh plugin add @deepseek-ai/dsh-web-app` 会去**公共 registry** 查版本。0.2.0-rc.2 上实测会拿到过期的 `0.0.1-rc.1` 并被兼容性检查拒绝（那次的原文见 `references/sources.md`）。**0.2.1-rc.2 与 0.2.2-rc.1 上我都没有重跑这一步**（registry 上该包的版本可能已经变了），所以别把"一定拿到旧版"当成结论——只要 `add` 输出 `installation rejected`，就按下面的逻辑处理。
 
 结论：**不要用 `add` 装 in-box bundle**；要加就加到 `dsh.profile.bundles` 列表里。
 
@@ -48,12 +48,13 @@ dsh --profile <p> --dump-config | grep -n '<你的行 id>'     # 行是否挂上
 dsh --profile <p> --patch /abs/path/overlay.yml --help
 ```
 
-用绝对路径把插件文件插进组合、给 app 传 `--help`：**组合会挂载、`apply` 会执行、stdout 会打印你的日志，Web 服务不会绑端口**。这是最快确认真实加载路径的方式。0.2.1-rc.2 实测输出（含 effect 释放，说明清理也跑了）：
+用绝对路径把插件文件插进组合、给 app 传 `--help`：**组合会挂载、`apply` 会执行、stdout 会打印你的日志，Web 服务不会绑端口**。这是最快确认真实加载路径的方式。0.2.2-rc.1 实测输出（含 effect 释放，说明清理也跑了；stderr 另有一条代理警告）：
 
 ```
-[adapt-check] apply ran; config = {"hello":"0.2.1"}
+[adapt-check] apply ran; config = {"hello":"0.2.2"}
 [adapt-check] effect registered
 Usage: dsh --profile web [options]
+...
 [adapt-check] effect disposed
 ```
 
