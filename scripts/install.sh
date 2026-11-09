@@ -39,13 +39,18 @@ fi
 
 if [ -z "$version" ]; then
   # Prefer the version this machine actually runs; fall back to the highest one.
-  detected="$(dsh --version 2>/dev/null | tr -d '[:space:]' | sed 's/^v//')"
+  # `|| true` keeps `set -e` from killing the script when dsh is not installed.
+  detected="$(dsh --version 2>/dev/null | tr -d '[:space:]' | sed 's/^v//' || true)"
   if [ -n "$detected" ] && [ -d "$repo_root/$detected" ]; then
     version="$detected"
     echo "using the installed runtime version: $version"
   else
     version="$(printf '%s\n' "${versions[@]}" | sort -V | tail -1)"
-    echo "dsh version not detected (or not in this repo); using the highest directory: $version"
+    if [ -n "$detected" ]; then
+      echo "dsh $detected detected, but this repo has no $detected/ directory; using the highest directory: $version"
+    else
+      echo "dsh version not detected; using the highest directory: $version"
+    fi
   fi
 fi
 selected="$repo_root/$version"

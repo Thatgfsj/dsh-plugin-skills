@@ -2,7 +2,7 @@
 // Validate every DSH skill bundle in this repository.
 //
 // The FAIL set mirrors what @deepseek-ai/dsh-skill-filesystem actually
-// rejects (0.2.1-rc.2): a red run means DSH would silently DROP the skill.
+// rejects (0.2.2-rc.1): a red run means DSH would silently DROP the skill.
 //   - the bundle is <root>/<name>/SKILL.md with a kebab-case directory name
 //   - YAML frontmatter has name + description, name matches the DSH rule
 //   - invocation booleans, when present, are real booleans
